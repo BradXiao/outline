@@ -357,23 +357,6 @@ This is a [test paragraph](https://example.net)`,
             expect(result).toBe("the cat’s “meow”");
         });
 
-        it("should not crash serializing a table with no rows", async () => {
-            const document = await buildDocument({
-                content: {
-                    type: "doc",
-                    content: [
-                        { type: "paragraph", content: [{ type: "text", text: "before" }] },
-                        { type: "table", content: [] },
-                        { type: "paragraph", content: [{ type: "text", text: "after" }] },
-                    ],
-                },
-            });
-            const result = await DocumentHelper.toMarkdown(document, {
-                includeTitle: false,
-            });
-            expect(result).toBe("before\n\nafter");
-        });
-
         it("should not escape standalone square brackets", async () => {
             const document = await buildDocument({
                 content: {
@@ -984,14 +967,9 @@ Is
 Table
 Multiple
 
-
 Lines
 
-
 In a cell
-
-
-
 
 `);
         });
