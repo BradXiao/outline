@@ -835,6 +835,17 @@ iframe.embed {
   }
 }
 
+.image-icon {
+  display: inline-block;
+  text-align: initial;
+  clear: initial;
+  vertical-align: text-bottom;
+
+  .image-wrapper {
+    margin: 0;
+  }
+}
+
 .image-right-50 {
   float: right;
   margin-left: 2em;
@@ -948,6 +959,11 @@ img.ProseMirror-separator {
 
 .component-image {
   display: block;
+}
+
+.component-image:has(.image-icon) {
+  display: inline-block;
+  vertical-align: text-bottom;
 }
 
 .image-commented .image-wrapper {
