@@ -166,10 +166,18 @@ export default class Heading extends Node<HeadingOptions> {
 
         const hash = `#${anchor.id}`;
 
-        // the existing url might contain a hash already, lets make sure to remove
-        // that rather than appending another one.
-        const normalizedUrl = window.location.href.split("#")[0].replace("/edit", "");
-        copy(normalizedUrl + hash);
+    // the existing url might contain a hash already, lets make sure to remove
+    // that rather than appending another one.
+    const normalizedUrl = window.location.href
+      .split("#")[0]
+      .replace("/edit", "");
+
+    // Heading text without the injected "#" anchor button.
+    const clone = heading.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".heading-anchor").forEach((el) => el.remove());
+    const headingText = clone.textContent?.trim() ?? "";
+
+    copy(`[📃${headingText}](${normalizedUrl}${hash})`);
 
         toast.message(t("Link copied to clipboard"));
     };
