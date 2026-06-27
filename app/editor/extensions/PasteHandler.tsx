@@ -115,6 +115,22 @@ export default class PasteHandler extends Extension {
               // trailing newline appended by the source) doesn't prevent URL
               // detection and skip the paste menu.
               const trimmedText = text.trim();
+              if (!state.selection.empty) {
+                  const markdownLink = /^\[[^\]]*\]\((.*)\)$/s;
+                  let candidate = trimmedText;
+                  let m = candidate.match(markdownLink);
+                  while (m) {
+                    candidate = m[1].trim();
+                    m = candidate.match(markdownLink);
+                  }
+                  if (candidate !== trimmedText && isUrl(candidate)) {
+                      toggleMark(this.editor.schema.marks.link, {
+                      href: candidate,
+                    })(state, dispatch);
+                    return true;
+                  }
+                  
+              }
               if (isUrl(trimmedText)) {
                 // If there is selected text then we want to wrap it in a link to the url
                 if (!state.selection.empty) {
