@@ -1372,6 +1372,12 @@ ${
   }
 }
 
+.notice-block.with-fit-content {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 5vw;
+}
+
 blockquote {
   margin: 0;
   padding: 8px 10px 8px 1.5em;

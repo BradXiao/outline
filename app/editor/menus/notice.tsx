@@ -3,6 +3,7 @@ import {
   DoneIcon,
   ExpandedIcon,
   InfoIcon,
+  ShrinkIcon,
   StarredIcon,
   WarningIcon,
 } from "outline-icons";
@@ -27,6 +28,16 @@ export default function noticeMenuItems(ctx: SelectionContext): MenuItem[] {
   };
 
   return [
+    {
+      name: "toggleNoticeFitContent",
+      icon: <ShrinkIcon />,
+      tooltip: t("Fit to content"),
+      active: () => !!node?.attrs.fitContent,
+      visible: !ctx.readOnly,
+    },
+    {
+      name: "separator",
+    },
     {
       name: "container_notice",
       visible: !ctx.readOnly,

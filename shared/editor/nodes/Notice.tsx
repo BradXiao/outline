@@ -37,6 +37,9 @@ export default class Notice extends Node {
         style: {
           default: NoticeTypes.Info,
         },
+        fitContent: {
+          default: false,
+        },
       },
       content:
         "(list | blockquote | hr | paragraph | heading | code_block | code_fence | attachment)+",
@@ -57,6 +60,7 @@ export default class Notice extends Node {
                 : dom.className.includes(NoticeTypes.Success)
                   ? NoticeTypes.Success
                   : undefined,
+            fitContent: dom.classList.contains("with-fit-content"),
           }),
         },
         // Quill editor parsing
@@ -114,9 +118,11 @@ export default class Notice extends Node {
           ReactDOM.render(component, icon);
         }
 
+        const classes = `notice-block ${node.attrs.style}${node.attrs.fitContent ? " with-fit-content" : ""}`;
+
         return [
           "div",
-          { class: `notice-block ${node.attrs.style}` },
+          { class: classes },
           ...(icon ? [icon] : []),
           ["div", { class: "content" }, 0],
         ];
@@ -136,6 +142,25 @@ export default class Notice extends Node {
         this.handleStyleChange(state, dispatch, NoticeTypes.Success),
       tip: (): Command => (state, dispatch) =>
         this.handleStyleChange(state, dispatch, NoticeTypes.Tip),
+      toggleNoticeFitContent: (): Command =>
+        (state: EditorState, dispatch: ((tr: Transaction) => void) | undefined) => {
+        const { tr, selection } = state;
+        const { $from } = selection;
+        const node = $from.node(-1);
+
+        if (node?.type.name === this.name) {
+          if (dispatch) {
+            dispatch(
+              tr.setNodeMarkup($from.before(-1), undefined, {
+                ...node.attrs,
+                fitContent: !node.attrs.fitContent,
+              })
+            );
+          }
+          return true;
+        }
+        return false;
+      },
     };
   }
 
