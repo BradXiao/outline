@@ -257,7 +257,7 @@ function Preferences() {
         name={UserPreference.RememberLastPath}
         label={t("Remember previous location")}
         description={t(
-          "Automatically return to the document you were last viewing when the app is re-opened."
+          "Automatically return to the document, and the cursor position within it, that you were last viewing when the app is re-opened."
         )}
       >
         <Switch

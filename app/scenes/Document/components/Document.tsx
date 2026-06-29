@@ -10,7 +10,12 @@ import breakpoint from "styled-components-breakpoint";
 import { EditorStyleHelper } from "@shared/editor/styles/EditorStyleHelper";
 import { s } from "@shared/styles";
 import type { NavigationNode } from "@shared/types";
-import { IconType, TOCPosition, TeamPreference } from "@shared/types";
+import {
+  IconType,
+  TOCPosition,
+  TeamPreference,
+  UserPreference,
+} from "@shared/types";
 import { determineIconType } from "@shared/utils/icon";
 import { isModKey } from "@shared/utils/keyboard";
 import type Document from "~/models/Document";
@@ -28,6 +33,7 @@ import type { Properties } from "~/types";
 import { useLocationSidebarContext } from "~/hooks/useLocationSidebarContext";
 import useStores from "~/hooks/useStores";
 import isTextInput from "~/utils/isTextInput";
+import { getCursorPosition, setCursorPosition } from "~/utils/cursorPosition";
 import { client } from "~/utils/ApiClient";
 import { emojiToUrl } from "~/utils/emoji";
 import { documentHistoryPath, documentEditPath } from "~/utils/routeHelpers";
@@ -120,6 +126,16 @@ function DocumentScene({
     const searchTerm = params.get("q");
     if (searchTerm) {
       editor.commands.find({ text: searchTerm });
+    } else if (
+      !window.location.hash &&
+      user?.getPreference(UserPreference.RememberLastPath)
+    ) {
+      // Restore the cursor to where it was when the document was last open, as
+      // long as we're not navigating to a specific anchor or search term.
+      const pos = getCursorPosition(document.id);
+      if (pos) {
+        editor.scrollToPosition(pos);
+      }
     }
 
     if (!restore) {
@@ -147,7 +163,37 @@ function DocumentScene({
       );
       toast.success(t("Document restored"));
     }
-  }, [location, replaceSelection, t, history, document.url]);
+  }, [
+    location,
+    replaceSelection,
+    t,
+    history,
+    document.url,
+    document.id,
+    user,
+  ]);
+
+  // Persist the cursor position so it can be restored when the document is
+  // re-opened, if the user has opted in. This must read the editor while it is
+  // still mounted (e.g. on blur or tab close) rather than on unmount, as React
+  // detaches the editor ref before parent effect cleanups run.
+  const saveCursorPosition = useCallback(() => {
+    if (revision || shareId) {
+      return;
+    }
+    if (!user?.getPreference(UserPreference.RememberLastPath)) {
+      return;
+    }
+    const editor = editorRef.current;
+    if (editor?.view) {
+      setCursorPosition(document.id, editor.view.state.selection.head);
+    }
+  }, [document.id, revision, shareId, user]);
+
+  React.useEffect(() => {
+    window.addEventListener("pagehide", saveCursorPosition);
+    return () => window.removeEventListener("pagehide", saveCursorPosition);
+  }, [saveCursorPosition]);
 
   const onUndoRedo = useCallback(
     (event: KeyboardEvent) => {
@@ -415,6 +461,7 @@ function DocumentScene({
                       onSave={onSave}
                       onPublish={onPublish}
                       onCancel={goBack}
+                      onBlur={saveCursorPosition}
                       readOnly={readOnly}
                       canUpdate={abilities.update}
                       canComment={abilities.comment}

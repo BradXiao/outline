@@ -650,6 +650,40 @@ export class Editor extends React.PureComponent<
   };
 
   /**
+   * Place the selection at the given document position and scroll it into view.
+   * Used to restore the last known cursor position when re-opening a document.
+   *
+   * @param pos The document position to place the selection at.
+   */
+  public scrollToPosition = (pos: number) => {
+    const { doc } = this.view.state;
+    const clamped = Math.max(0, Math.min(pos, doc.content.size));
+    const selection = TextSelection.near(doc.resolve(clamped));
+    this.view.dispatch(this.view.state.tr.setSelection(selection));
+
+    // Restore editing focus so the caret is placed where the user left off,
+    // but only when the document is editable.
+    if (!this.props.readOnly) {
+      this.view.focus();
+    }
+
+    // Scroll so the cursor sits in the upper part of the viewport rather than
+    // at the very bottom, which is where the default minimal scrollIntoView
+    // would leave it.
+    try {
+      const coords = this.view.coordsAtPos(clamped);
+      const offsetFromTop = window.innerHeight / 4;
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + coords.top - offsetFromTop),
+      });
+    } catch (_err) {
+      // coordsAtPos can throw if the position has not yet been laid out, in
+      // which case fall back to the default scroll behavior.
+      this.view.dispatch(this.view.state.tr.scrollIntoView());
+    }
+  };
+
+  /**
    * Focus the editor and scroll to the current selection.
    */
   public focus = () => {
