@@ -343,6 +343,122 @@ export const codeLanguages: Record<string, CodeLanguage> = {
 };
 
 /**
+ * Maps common language identifiers used by other tools/platforms (e.g. GitHub,
+ * Obsidian, Prism, highlight.js) onto the identifiers understood by the editor
+ * in {@link codeLanguages}. Keys must be lowercase; values must be keys of
+ * {@link codeLanguages}.
+ */
+const codeLanguageAliases: Record<string, string> = {
+  js: "javascript",
+  node: "javascript",
+  nodejs: "javascript",
+  ts: "typescript",
+  py: "python",
+  python2: "python",
+  python3: "python",
+  rb: "ruby",
+  sh: "bash",
+  shell: "bash",
+  "shell-session": "bash",
+  shellsession: "bash",
+  console: "bash",
+  zsh: "bash",
+  ksh: "bash",
+  c: "clike",
+  h: "clike",
+  "c++": "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  hpp: "cpp",
+  hxx: "cpp",
+  "c#": "csharp",
+  cs: "csharp",
+  objc: "objectivec",
+  "obj-c": "objectivec",
+  "objective-c": "objectivec",
+  html: "markup",
+  htm: "markup",
+  xhtml: "markup",
+  svg: "markup",
+  yml: "yaml",
+  md: "markdown",
+  mkd: "markdown",
+  mdown: "markdown",
+  golang: "go",
+  kt: "kotlin",
+  kts: "kotlin",
+  rs: "rust",
+  ps: "powershell",
+  ps1: "powershell",
+  pwsh: "powershell",
+  posh: "powershell",
+  dockerfile: "docker",
+  containerfile: "docker",
+  make: "makefile",
+  mk: "makefile",
+  proto: "protobuf",
+  gql: "graphql",
+  vbnet: "vb",
+  "vb.net": "vb",
+  "visual-basic": "vb",
+  visualbasic: "vb",
+  text: "none",
+  plaintext: "none",
+  plain: "none",
+  txt: "none",
+  conf: "ini",
+  cfg: "ini",
+  properties: "ini",
+  editorconfig: "ini",
+  hs: "haskell",
+  ex: "elixir",
+  exs: "elixir",
+  erl: "erlang",
+  pl: "perl",
+  f90: "fortran",
+  f95: "fortran",
+  mysql: "sql",
+  postgres: "sql",
+  postgresql: "sql",
+  pgsql: "sql",
+  plsql: "sql",
+  tsql: "sql",
+  patch: "diff",
+  rscript: "r",
+  ml: "ocaml",
+  mli: "ocaml",
+  gradle: "groovy",
+  sol: "solidity",
+  terraform: "hcl",
+  tf: "hcl",
+  tfvars: "hcl",
+  less: "css",
+  jsonc: "json",
+  json5: "json",
+};
+
+/**
+ * Normalizes a code fence language token to an identifier understood by the
+ * editor, resolving common aliases (e.g. "js" → "javascript"). Tokens that are
+ * already valid identifiers are returned as-is.
+ *
+ * @param language - The raw language token from a code fence info string.
+ * @returns the canonical editor language identifier, or undefined if unknown.
+ */
+export const normalizeCodeLanguage = (
+  language: string
+): string | undefined => {
+  const lang = language.trim().toLowerCase();
+  if (!lang) {
+    return undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(codeLanguages, lang)) {
+    return lang;
+  }
+  return codeLanguageAliases[lang];
+};
+
+/**
  * Get the human-readable label for a given language.
  *
  * @param language The language identifier.

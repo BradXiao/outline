@@ -20,7 +20,6 @@ import {
   UnsubscribeIcon,
 } from "outline-icons";
 import { toast } from "sonner";
-import { errToString } from "@shared/utils/error";
 import Collection from "~/models/Collection";
 import { CollectionEdit } from "~/components/Collection/CollectionEdit";
 import { CollectionNew } from "~/components/Collection/CollectionNew";
@@ -42,8 +41,8 @@ import {
 } from "~/utils/routeHelpers";
 import ExportDialog from "~/components/ExportDialog";
 import { getEventFiles } from "@shared/utils/files";
-import history from "~/utils/history";
 import lazyWithRetry from "~/utils/lazyWithRetry";
+import { importFiles } from "~/utils/importDocuments";
 
 const ColorCollectionIcon = ({ collection }: { collection: Collection }) => (
   <DynamicCollectionIcon collection={collection} />
@@ -159,26 +158,59 @@ export const importDocument = createAction({
     if (!collection) {
       return;
     }
+
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = documents.importFileTypesString;
+    input.multiple = true;
+    input.accept = [
+      documents.importFileTypesString,
+      ".jpg,.jpeg,.png,.gif,.webp,.svg,.avif,.bmp",
+    ].join(",");
 
-    input.onchange = async (ev) => {
-      const files = getEventFiles(ev);
-      const file = files[0];
-      const toastId = toast.loading(`${t("Uploading")}…`);
+    input.onchange = (ev) =>
+      void importFiles(
+        getEventFiles(ev),
+        { collectionId: collection.id },
+        documents,
+        t
+      );
 
-      try {
-        const document = await documents.import(file, null, collection.id, {
-          publish: true,
-        });
-        history.push(document.path);
-      } catch (err) {
-        toast.error(errToString(err));
-      } finally {
-        toast.dismiss(toastId);
-      }
-    };
+    input.click();
+  },
+});
+
+export const importDirectory = createAction({
+  name: ({ t }) => t("Import from directory"),
+  analyticsName: "Import from directory",
+  section: ActiveCollectionSection,
+  icon: <ImportIcon />,
+  keywords: "folder import bulk",
+  visible: ({ getActivePolicies }) =>
+    getActivePolicies(Collection).some(
+      (policy) => policy.abilities.createDocument
+    ),
+  perform: ({ t, getActiveModel, stores }) => {
+    const { documents } = stores;
+    const collection = getActiveModel(Collection);
+    if (!collection) {
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    // webkitdirectory selects an entire folder tree recursively; every file
+    // carries a webkitRelativePath so image references resolve against the
+    // markdown file's location. Note: `accept` is ignored in this mode, so we
+    // filter to supported document/image types after selection.
+    input.webkitdirectory = true;
+
+    input.onchange = (ev) =>
+      void importFiles(
+        getEventFiles(ev),
+        { collectionId: collection.id },
+        documents,
+        t
+      );
 
     input.click();
   },

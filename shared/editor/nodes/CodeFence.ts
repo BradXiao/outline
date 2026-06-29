@@ -39,6 +39,7 @@ import Mermaid, {
 } from "../extensions/Mermaid";
 import {
   getRecentlyUsedCodeLanguage,
+  normalizeCodeLanguage,
   setRecentlyUsedCodeLanguage,
 } from "../lib/code";
 import { isCode, isMermaid } from "../lib/isCode";
@@ -723,7 +724,16 @@ export default class CodeFence extends Node<CodeFenceOptions> {
   parseMarkdown() {
     return {
       block: "code_block",
-      getAttrs: (tok: Token) => ({ language: tok.info }),
+      getAttrs: (tok: Token) => {
+        // The fence info string is used verbatim by markdown-it, so it can
+        // carry a trailing carriage return (CRLF files), surrounding
+        // whitespace, or trailing parameters. Take the first token and map
+        // aliases from other platforms (e.g. "js" → "javascript") to an
+        // identifier the editor can highlight; unknown languages are kept
+        // as-is so they round-trip on export.
+        const token = tok.info.trim().split(/\s+/)[0] ?? "";
+        return { language: normalizeCodeLanguage(token) ?? token };
+      },
       noCloseToken: true,
     };
   }

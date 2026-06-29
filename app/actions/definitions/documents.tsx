@@ -36,7 +36,6 @@ import {
   OpenIcon,
 } from "outline-icons";
 import { toast } from "sonner";
-import { errToString } from "@shared/utils/error";
 import Icon from "@shared/components/Icon";
 import type { NavigationNode } from "@shared/types";
 import { ExportContentType } from "@shared/types";
@@ -91,6 +90,7 @@ import type {
   ActionSeparator,
 } from "~/types";
 import lazyWithRetry from "~/utils/lazyWithRetry";
+import { importFiles } from "~/utils/importDocuments";
 import env from "~/env";
 import { isMac, isWindows } from "@shared/utils/browser";
 import isCloudHosted from "~/utils/isCloudHosted";
@@ -1106,29 +1106,64 @@ export const importDocument = createAction({
     const { documents } = stores;
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = documents.importFileTypesString;
+    input.multiple = true;
+    input.accept = [
+      documents.importFileTypesString,
+      ".jpg,.jpeg,.png,.gif,.webp,.svg,.avif,.bmp",
+    ].join(",");
 
-    input.onchange = async (ev) => {
-      const files = getEventFiles(ev);
-      const file = files[0];
-      const toastId = toast.loading(`${t("Uploading")}…`);
+    input.onchange = (ev) =>
+      void importFiles(
+        getEventFiles(ev),
+        {
+          collectionId: activeCollectionId,
+          parentDocumentId: activeDocumentId,
+        },
+        documents,
+        t
+      );
 
-      try {
-        const document = await documents.import(
-          file,
-          activeDocumentId,
-          activeCollectionId,
-          {
-            publish: true,
-          }
-        );
-        history.push(document.url);
-      } catch (err) {
-        toast.error(errToString(err));
-      } finally {
-        toast.dismiss(toastId);
-      }
-    };
+    input.click();
+  },
+});
+
+export const importDirectory = createAction({
+  name: ({ t }) => t("Import from directory"),
+  analyticsName: "Import from directory",
+  section: DocumentSection,
+  icon: <ImportIcon />,
+  keywords: "folder import bulk upload",
+  visible: ({ activeCollectionId, activeDocumentId, stores }) => {
+    if (activeDocumentId) {
+      return !!stores.policies.abilities(activeDocumentId).createChildDocument;
+    }
+
+    if (activeCollectionId) {
+      return !!stores.policies.abilities(activeCollectionId).createDocument;
+    }
+
+    return false;
+  },
+  perform: ({ t, activeDocumentId, activeCollectionId, stores }) => {
+    const { documents } = stores;
+    const input = document.createElement("input");
+    input.type = "file";
+    // webkitdirectory selects an entire folder tree recursively; every file
+    // carries a webkitRelativePath so image references resolve against the
+    // markdown file's location. Note: `accept` is ignored in this mode, so the
+    // helper filters to supported document/image types after selection.
+    input.webkitdirectory = true;
+
+    input.onchange = (ev) =>
+      void importFiles(
+        getEventFiles(ev),
+        {
+          collectionId: activeCollectionId,
+          parentDocumentId: activeDocumentId,
+        },
+        documents,
+        t
+      );
 
     input.click();
   },
@@ -1606,6 +1641,7 @@ export const rootDocumentActions = [
   createTemplateFromDocument,
   deleteDocument,
   importDocument,
+  importDirectory,
   downloadDocument,
   downloadDocumentAsMarkdown,
   downloadDocumentAsHTML,

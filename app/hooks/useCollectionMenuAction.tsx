@@ -16,6 +16,7 @@ import {
   createDocument,
   exportCollection,
   importDocument,
+  importDirectory,
   sortCollection,
 } from "~/actions/definitions/collections";
 import { ActiveCollectionSection } from "~/actions/sections";
@@ -47,6 +48,7 @@ export function useCollectionMenuAction({ collectionId, onRename }: Props) {
       ActionSeparator,
       createDocument,
       importDocument,
+      importDirectory,
       ActionSeparator,
       createAction({
         name: `${t("Rename")}…`,
