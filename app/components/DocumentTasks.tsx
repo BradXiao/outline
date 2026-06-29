@@ -13,33 +13,45 @@ type Props = {
   document: Document;
 };
 
-function getMessage(t: TFunction, total: number, completed: number): string {
+function getMessage(
+  t: TFunction,
+  total: number,
+  completed: number,
+  inProgress: number
+): string {
+  let base: string;
   if (completed === 0) {
-    return t(`{{ total }} task`, {
+    base = t(`{{ total }} task`, {
       total,
       count: total,
     });
   } else if (completed === total) {
-    return t(`{{ completed }} task done`, {
+    base = t(`{{ completed }} task done`, {
       completed,
       count: completed,
     });
   } else {
-    return t(`{{ completed }} of {{ total }} tasks`, {
+    base = t(`{{ completed }} of {{ total }} tasks`, {
       total,
       completed,
     });
   }
+
+  if (inProgress > 0 && completed < total) {
+    base += ` (${t(`{{ count }} in progress`, { count: inProgress })})`;
+  }
+
+  return base;
 }
 
 function DocumentTasks({ document }: Props) {
   const { tasks, tasksPercentage } = document;
   const { t } = useTranslation();
   const theme = useTheme();
-  const { completed, total } = tasks;
+  const { completed, total, inProgress } = tasks;
   const done = completed === total;
   const previousDone = usePrevious(done);
-  const message = getMessage(t, total, completed);
+  const message = getMessage(t, total, completed, inProgress ?? 0);
 
   return (
     <Flex align="center" style={{ padding: "0 1px" }} gap={2} shrink={false}>

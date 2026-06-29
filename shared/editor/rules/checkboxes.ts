@@ -35,12 +35,13 @@ export default function markdownItCheckbox(md: MarkdownIt): void {
   function render(tokens: Token[], idx: number) {
     const token = tokens[idx];
     const checked = !!token.attrGet("checked");
+    const inProgress = !checked && !!token.attrGet("inProgress");
 
     if (token.nesting === 1) {
+      const stateClass = checked ? "checked" : inProgress ? "in-progress" : "";
+      const marker = checked ? "[x]" : inProgress ? "[-]" : "[ ]";
       // opening tag
-      return `<li class="checkbox-list-item"><span class="checkbox ${
-        checked ? "checked" : ""
-      }">${checked ? "[x]" : "[ ]"}</span>`;
+      return `<li class="checkbox-list-item"><span class="checkbox ${stateClass}">${marker}</span>`;
     } else {
       // closing tag
       return "</li>\n";
@@ -60,6 +61,7 @@ export default function markdownItCheckbox(md: MarkdownIt): void {
       if (matchesChecklist) {
         const value = matchesChecklist[1];
         const checked = value.toLowerCase() === "x";
+        const inProgress = value === "-";
 
         // convert surrounding list tokens
         if (tokens[i - 3].type === "bullet_list_open") {
@@ -70,7 +72,7 @@ export default function markdownItCheckbox(md: MarkdownIt): void {
           tokens[i + 3].type = "checkbox_list_close";
         }
 
-        // remove [ ] [x] from list item label – must use the content from the
+        // remove [ ] [x] [-] from list item label – must use the content from the
         // child for escaped characters to be unescaped correctly.
         const tokenChildren = tokens[i].children;
         if (tokenChildren && tokenChildren[0].type === "text") {
@@ -84,11 +86,13 @@ export default function markdownItCheckbox(md: MarkdownIt): void {
           }
         }
 
-        // open list item and ensure checked state is transferred
+        // open list item and ensure checked/in-progress state is transferred
         tokens[i - 2].type = "checkbox_item_open";
 
-        if (checked === true) {
+        if (checked) {
           tokens[i - 2].attrs = [["checked", "true"]];
+        } else if (inProgress) {
+          tokens[i - 2].attrs = [["inProgress", "true"]];
         }
 
         // close the list item

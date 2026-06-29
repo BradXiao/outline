@@ -74,9 +74,10 @@ class DocumentContext {
 
   private updateTasks() {
     const tasks = this.editor?.getTasks() ?? [];
-    const total = tasks.length ?? 0;
-    const completed = tasks.filter((t) => t.completed).length ?? 0;
-    this.document?.updateTasks(total, completed);
+    const total = tasks.length;
+    const completed = tasks.filter((t) => t.completed).length;
+    const inProgress = tasks.filter((t) => t.inProgress).length;
+    this.document?.updateTasks(total, completed, inProgress);
   }
 }
 

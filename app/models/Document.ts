@@ -210,6 +210,7 @@ export default class Document extends ArchivableModel implements Searchable {
   tasks: {
     completed: number;
     total: number;
+    inProgress: number;
   };
 
   @observable
@@ -453,9 +454,13 @@ export default class Document extends ArchivableModel implements Searchable {
   }
 
   @action
-  updateTasks(total: number, completed: number) {
-    if (total !== this.tasks.total || completed !== this.tasks.completed) {
-      this.tasks = { total, completed };
+  updateTasks(total: number, completed: number, inProgress: number) {
+    if (
+      total !== this.tasks.total ||
+      completed !== this.tasks.completed ||
+      inProgress !== this.tasks.inProgress
+    ) {
+      this.tasks = { total, completed, inProgress };
     }
   }
 

@@ -3,9 +3,9 @@ import type { Command } from "prosemirror-state";
 import { findParentNode } from "../queries/findParentNode";
 
 /**
- * A prosemirror command to toggle the checkboxs at the current selection.
- * When multiple checkbox items are selected, toggles all of them: if any are
- * checked, all become unchecked; otherwise all become checked.
+ * A prosemirror command to cycle checkbox items at the current selection through
+ * three states: not started → in progress → done → not started.
+ * When multiple items are selected, advances them together as a group.
  *
  * @param type The checkbox item node type.
  * @returns A prosemirror command.
@@ -30,9 +30,11 @@ export function toggleCheckboxItems(type: NodeType): Command {
         return false;
       }
 
-      // If any are checked, uncheck all; otherwise check all
+      // If any are done → uncheck all; if any are in-progress → done all; else → in-progress all
       const anyChecked = checkboxes.some((cb) => cb.node.attrs.checked);
-      const newCheckedState = !anyChecked;
+      const anyInProgress = !anyChecked && checkboxes.some((cb) => cb.node.attrs.inProgress);
+      const newChecked = anyInProgress;
+      const newInProgress = !anyChecked && !anyInProgress;
 
       if (dispatch) {
         let tr = state.tr;
@@ -41,7 +43,8 @@ export function toggleCheckboxItems(type: NodeType): Command {
           const { pos, node } = checkboxes[i];
           tr = tr.setNodeMarkup(pos, undefined, {
             ...node.attrs,
-            checked: newCheckedState,
+            checked: newChecked,
+            inProgress: newInProgress,
           });
         }
         dispatch(tr);
@@ -58,9 +61,15 @@ export function toggleCheckboxItems(type: NodeType): Command {
       return false;
     }
 
+    const { checked, inProgress } = listItem.node.attrs;
+    // Cycle: not started → in progress → done → not started
+    const newChecked = !!inProgress && !checked;
+    const newInProgress = !checked && !inProgress;
+
     dispatch?.(
       state.tr.setNodeMarkup(listItem.pos, undefined, {
-        checked: !listItem.node.attrs.checked,
+        checked: newChecked,
+        inProgress: newInProgress,
       })
     );
     return true;

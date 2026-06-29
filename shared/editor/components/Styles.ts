@@ -1584,6 +1584,10 @@ ul.checkbox_list > li.checked > div > p {
   color: ${props.theme.textTertiary};
 }
 
+ul.checkbox_list > li.in-progress > div > p {
+  color: ${props.theme.warning};
+}
+
 ul li,
 ol li {
   &::before {
@@ -1696,12 +1700,33 @@ ul.checkbox_list {
       transition: stroke-dashoffset 200ms ease-in-out;
     }
 
+    .checkbox-dash {
+      fill: none;
+      stroke: ${props.theme.accent};
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-dasharray: 7;
+      stroke-dashoffset: 7;
+      transition: stroke-dashoffset 200ms ease-in-out;
+    }
+
     &[aria-checked=true] {
       .checkbox-box {
         fill-opacity: 1;
         stroke: ${props.theme.accent};
       }
       .checkbox-tick {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    &[aria-checked=mixed] {
+      opacity: 1;
+      .checkbox-box {
+        fill-opacity: 0.2;
+        stroke: ${props.theme.accent};
+      }
+      .checkbox-dash {
         stroke-dashoffset: 0;
       }
     }

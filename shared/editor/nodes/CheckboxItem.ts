@@ -27,6 +27,9 @@ export default class CheckboxItem extends Node {
         checked: {
           default: false,
         },
+        inProgress: {
+          default: false,
+        },
       },
       content: "block+",
       defining: true,
@@ -36,31 +39,46 @@ export default class CheckboxItem extends Node {
           tag: `li[data-type="${this.name}"]`,
           getAttrs: (dom: HTMLLIElement) => ({
             checked: dom.className.includes("checked"),
+            inProgress: dom.className.includes("in-progress"),
           }),
         },
       ],
       // Rendering and interaction are handled by CheckboxItemView; this spec is
       // only used for serialization (e.g. clipboard, HTML export).
-      toDOM: (node) => [
-        "li",
-        {
-          "data-type": this.name,
-          class: node.attrs.checked ? "checked" : undefined,
-        },
-        [
-          "span",
-          { contentEditable: "false" },
+      toDOM: (node: ProsemirrorNode) => {
+        const classNames: string[] = [];
+        if (node.attrs.checked) {
+          classNames.push("checked");
+        } else if (node.attrs.inProgress) {
+          classNames.push("in-progress");
+        }
+        const ariaChecked = node.attrs.checked
+          ? "true"
+          : node.attrs.inProgress
+            ? "mixed"
+            : "false";
+
+        return [
+          "li",
+          {
+            "data-type": this.name,
+            class: classNames.length > 0 ? classNames.join(" ") : undefined,
+          },
           [
             "span",
-            {
-              class: "checkbox",
-              role: "checkbox",
-              "aria-checked": node.attrs.checked ? "true" : "false",
-            },
+            { contentEditable: "false" },
+            [
+              "span",
+              {
+                class: "checkbox",
+                role: "checkbox",
+                "aria-checked": ariaChecked,
+              },
+            ],
           ],
-        ],
-        ["div", 0],
-      ],
+          ["div", 0],
+        ];
+      },
     };
   }
 
@@ -92,6 +110,7 @@ export default class CheckboxItem extends Node {
     return {
       Enter: splitListItem(type, {
         checked: false,
+        inProgress: false,
       }),
       Tab: sinkListItem(type),
       "Mod-Enter": toggleCheckboxItems(type),
@@ -102,7 +121,7 @@ export default class CheckboxItem extends Node {
   }
 
   toMarkdown(state: MarkdownSerializerState, node: ProsemirrorNode) {
-    state.append(node.attrs.checked ? "[x] " : "[ ] ");
+    state.append(node.attrs.checked ? "[x] " : node.attrs.inProgress ? "[-] " : "[ ] ");
     if (state.inTable) {
       node.forEach((block, _, i) => {
         if (i > 0) {
@@ -120,6 +139,7 @@ export default class CheckboxItem extends Node {
       block: "checkbox_item",
       getAttrs: (tok: Token) => ({
         checked: tok.attrGet("checked") ? true : undefined,
+        inProgress: tok.attrGet("inProgress") ? true : undefined,
       }),
     };
   }

@@ -34,6 +34,8 @@ export type Task = {
   text: string;
   /* Whether the task is completed or not */
   completed: boolean;
+  /* Whether the task is in progress */
+  inProgress: boolean;
 };
 
 interface User {
@@ -434,7 +436,8 @@ export class ProsemirrorHelper {
 
           tasks.push({
             text,
-            completed: listItem.attrs.checked,
+            completed: !!listItem.attrs.checked,
+            inProgress: !listItem.attrs.checked && !!listItem.attrs.inProgress,
           });
         });
       }
@@ -451,9 +454,14 @@ export class ProsemirrorHelper {
    * @param doc Prosemirror document node
    * @returns Object with completed and total keys
    */
-  static getTasksSummary(doc: Node): { completed: number; total: number } {
+  static getTasksSummary(doc: Node): {
+    completed: number;
+    total: number;
+    inProgress: number;
+  } {
     let completed = 0;
     let total = 0;
+    let inProgress = 0;
 
     doc.descendants((node) => {
       if (!node.isBlock) {
@@ -465,6 +473,8 @@ export class ProsemirrorHelper {
           total++;
           if (listItem.attrs.checked) {
             completed++;
+          } else if (listItem.attrs.inProgress) {
+            inProgress++;
           }
         });
       }
@@ -472,7 +482,7 @@ export class ProsemirrorHelper {
       return true;
     });
 
-    return { completed, total };
+    return { completed, total, inProgress };
   }
 
   /**

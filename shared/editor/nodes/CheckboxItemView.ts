@@ -4,7 +4,7 @@ import type { EditorView, NodeView } from "prosemirror-view";
 import { v4 as uuidv4 } from "uuid";
 import { isBrowser } from "../../utils/browser";
 
-const checkboxSVG = `<svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><rect class="checkbox-box" x="1" y="1" width="12" height="12" rx="3" /><path class="checkbox-tick" d="M3.5 7.3L6 9.8L10.5 4.2" /></svg>`;
+const checkboxSVG = `<svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><rect class="checkbox-box" x="1" y="1" width="12" height="12" rx="3" /><path class="checkbox-tick" d="M3.5 7.3L6 9.8L10.5 4.2" /><path class="checkbox-dash" d="M3.5 7H10.5" /></svg>`;
 
 /**
  * Custom NodeView for checkbox items. Keeps the DOM stable across checked
@@ -78,8 +78,12 @@ export class CheckboxItemView implements NodeView {
 
   private updateChecked(node: ProsemirrorNode) {
     const checked = !!node.attrs.checked;
-    this.checkbox.setAttribute("aria-checked", checked.toString());
+    const inProgress = !checked && !!node.attrs.inProgress;
+    const ariaChecked = checked ? "true" : inProgress ? "mixed" : "false";
+
+    this.checkbox.setAttribute("aria-checked", ariaChecked);
     this.dom.classList.toggle("checked", checked);
+    this.dom.classList.toggle("in-progress", inProgress);
   }
 
   private handleClick = (event: Event) => {
@@ -99,10 +103,15 @@ export class CheckboxItemView implements NodeView {
     const { tr, doc } = view.state;
 
     if (checkbox) {
-      // Clicking the checkbox toggles its checked state.
+      // Clicking cycles: not started → in progress → done → not started.
+      const current = checkbox.getAttribute("aria-checked");
+      const newChecked = current === "mixed";
+      const newInProgress = current === "false";
+
       view.dispatch(
         tr.setNodeMarkup(pos, undefined, {
-          checked: checkbox.getAttribute("aria-checked") !== "true",
+          checked: newChecked,
+          inProgress: newInProgress,
         })
       );
     } else if (view.editable) {
