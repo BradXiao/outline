@@ -1860,6 +1860,98 @@ mark {
   }
 }
 
+.${EditorStyleHelper.codeBlockTitle} {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0.5em 0 0;
+  padding: 5px 12px;
+  background: ${props.theme.codeBackground};
+  border: 1px solid ${props.theme.codeBorder};
+  border-bottom: 0;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  user-select: none;
+
+  .${EditorStyleHelper.codeBlockTitleIcon} {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: ${props.theme.textSecondary};
+
+    svg,
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .${EditorStyleHelper.codeBlockTitleInput} {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    outline: none;
+    color: ${props.theme.textSecondary};
+    font-family: ${props.theme.fontFamilyMono};
+    font-size: 14px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+
+    &::placeholder {
+      color: ${props.theme.textSecondary};
+      opacity: 1;
+    }
+
+    &:not([readonly]) {
+      cursor: text;
+    }
+
+    &:not([readonly]):hover,
+    &:not([readonly]):focus {
+      color: ${props.theme.text};
+    }
+  }
+}
+
+/* The title widget and the code block are adjacent direct children of the
+ * editor, so the code block picks up a top margin that opens a gap below the
+ * title. Collapse it so the row sits flush on top of the block. */
+.${EditorStyleHelper.codeBlockTitle} + .${EditorStyleHelper.codeBlock} {
+  margin-top: 0;
+}
+
+.${EditorStyleHelper.codeBlockTitle} + .${EditorStyleHelper.codeBlock} pre {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* The static title row (rendered in toDOM) is only shown in static exports,
+ * where plugin decorations — and therefore the interactive title widget — are
+ * not present. In the live editor the widget provides the title instead. */
+.${EditorStyleHelper.codeBlockTitleStatic} {
+  display: none;
+}
+
+.exported .${EditorStyleHelper.codeBlockTitleStatic} {
+  display: flex;
+
+  & + pre {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
 .${EditorStyleHelper.codeBlock}[data-language=none],
 .${EditorStyleHelper.codeBlock}[data-language=markdown] {
   pre code {
@@ -1943,22 +2035,19 @@ mark {
     padding-left: calc(var(--line-number-gutter-width, 0) * 1em + 1.5em);
   }
 
-  &::after {
-    content: attr(data-line-numbers);
-    position: absolute;
-    padding-left: 0.5em;
-    left: 1px;
-    top: calc(1px + 0.75em);
-    width: calc(var(--line-number-gutter-width,0) * 1em + .25em);
-    word-break: break-all;
-    white-space: break-spaces;
-    font-family: ${props.theme.fontFamilyMono};
-    line-height: 1.4em;
-    color: ${props.theme.textTertiary};
-    background: ${props.theme.codeBackground};
+  .line-number {
+    /* The number sits at the start of each logical line's text flow. A negative
+       margin equal to the pre's gutter padding pulls it back into the gutter so
+       the code (and any soft-wrapped continuation rows) line up to its right. */
+    display: inline-block;
+    width: calc(var(--line-number-gutter-width, 0) * 1em + 1em);
+    margin-left: calc(-1 * (var(--line-number-gutter-width, 0) * 1em + 1.5em));
+    padding-right: 0.5em;
     text-align: right;
+    color: ${props.theme.textTertiary};
     font-variant-numeric: tabular-nums;
     user-select: none;
+    pointer-events: none;
   }
 }
 
@@ -1967,12 +2056,6 @@ mark {
     pointer-events: none;
     max-height: calc(10 * 1.4em + 0.75em);
     overflow: hidden;
-  }
-
-  &::after {
-    max-height: calc(10 * 1.4em + 0.75em);
-    overflow: hidden;
-    clip-path: inset(0 0 calc(100% - 10 * 1.4em - 0.75em) 0);
   }
 
   &::before {
@@ -1997,12 +2080,6 @@ mark {
     pre {
       max-height: none;
       overflow: visible;
-    }
-
-    &::after {
-      max-height: none;
-      overflow: visible;
-      clip-path: none;
     }
 
     &::before {

@@ -48,6 +48,18 @@ export class EditorStyleHelper {
   /** Toggle button for collapsible code blocks */
   static readonly codeBlockToggle = "code-block-toggle";
 
+  /** Title row shown above a code block */
+  static readonly codeBlockTitle = "code-block-title";
+
+  /** Language icon within a code block title row */
+  static readonly codeBlockTitleIcon = "code-block-title-icon";
+
+  /** Editable title input within a code block title row */
+  static readonly codeBlockTitleInput = "code-block-title-input";
+
+  /** Static title row rendered inside the block for export (no decorations) */
+  static readonly codeBlockTitleStatic = "code-block-title-static";
+
   // Diffs
 
   static readonly diffInsertion = "diff-insertion";

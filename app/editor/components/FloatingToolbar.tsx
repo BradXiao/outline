@@ -109,8 +109,18 @@ function usePosition({
         : null;
 
     if (position !== null) {
-      const element = view.nodeDOM(position);
-      const bounds = (element as HTMLElement).getBoundingClientRect();
+      const element = view.nodeDOM(position) as HTMLElement;
+
+      // A code block can have a title row rendered immediately above it. When
+      // present, anchor the toolbar to the title row so it sits above the fence
+      // rather than over the code content.
+      const titleRow = element?.previousElementSibling;
+      const anchor =
+        titleRow instanceof HTMLElement &&
+        titleRow.classList.contains(EditorStyleHelper.codeBlockTitle)
+          ? titleRow
+          : element;
+      const bounds = anchor.getBoundingClientRect();
       selectionBounds.top = bounds.top + menuHeight;
       selectionBounds.left = bounds.right;
       selectionBounds.right = bounds.right;

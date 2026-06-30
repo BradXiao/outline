@@ -1,4 +1,4 @@
-import { flattenDeep, padStart } from "es-toolkit/compat";
+import { flattenDeep } from "es-toolkit/compat";
 import type { Node } from "prosemirror-model";
 import type { Transaction } from "prosemirror-state";
 import { Plugin, PluginKey } from "prosemirror-state";
@@ -12,6 +12,23 @@ type ParsedNode = {
   text: string;
   classes: string[];
 };
+
+/**
+ * Build the DOM for a single line-number gutter cell. The number lives in the
+ * code's text flow (as a widget decoration) rather than a CSS overlay, so a
+ * soft-wrapped line keeps exactly one number and its continuation rows get a
+ * blank gutter.
+ *
+ * @param lineNumber - the one-based line number to render.
+ * @returns the gutter cell element.
+ */
+function createLineNumber(lineNumber: number): HTMLElement {
+  const span = document.createElement("span");
+  span.className = "line-number";
+  span.contentEditable = "false";
+  span.textContent = String(lineNumber);
+  return span;
+}
 
 const cache: Record<number, { node: Node; decorations: Decoration[] }> = {};
 const languagesToImport = new Set<string>();
@@ -109,29 +126,45 @@ function getDecorations({
     const lineDecorations = [];
 
     if (!cache[block.pos] || !cache[block.pos].node.eq(block.node)) {
-      if (lineNumbers && !block.node.attrs.wrap) {
-        const lineCount =
-          (block.node.textContent.match(/\n/g) || []).length + 1;
+      // Per-block line number preference. Falls back to the editor-wide default
+      // for blocks that predate the attribute (loaded without it set).
+      const showLineNumbers = block.node.attrs.lineNumbers ?? lineNumbers;
+      if (showLineNumbers) {
+        const text = block.node.textContent;
+        const lineCount = (text.match(/\n/g) || []).length + 1;
         const gutterWidth = String(lineCount).length;
 
-        const lineCountText = new Array(lineCount)
-          .fill(0)
-          .map((_, i) => padStart(`${i + 1}`, gutterWidth, " "))
-          .join("\n");
-
+        // Reserve the gutter space and expose its width to the CSS that sizes
+        // each number. A single node decoration keeps this cheap.
         lineDecorations.push(
           Decoration.node(
             block.pos,
             block.pos + block.node.nodeSize,
-            {
-              "data-line-numbers": `${lineCountText}`,
-              style: `--line-number-gutter-width: ${gutterWidth};`,
-            },
-            {
-              key: `line-${lineCount}-gutter`,
-            }
+            { style: `--line-number-gutter-width: ${gutterWidth};` },
+            { key: `line-gutter-${gutterWidth}` }
           )
         );
+
+        // One widget per logical line, anchored at the line's start position.
+        // The first line begins at the content start (block.pos + 1); every
+        // subsequent line begins one position after its preceding newline.
+        const pushNumber = (pos: number, lineNumber: number) => {
+          lineDecorations.push(
+            Decoration.widget(pos, () => createLineNumber(lineNumber), {
+              side: -1,
+              key: `line-number-${lineNumber}-${gutterWidth}`,
+            })
+          );
+        };
+
+        let lineNumber = 1;
+        pushNumber(block.pos + 1, lineNumber);
+        for (let i = 0; i < text.length; i++) {
+          if (text[i] === "\n") {
+            lineNumber += 1;
+            pushNumber(block.pos + 1 + i + 1, lineNumber);
+          }
+        }
       }
 
       cache[block.pos] = {
@@ -213,12 +246,18 @@ export function CodeHighlighting({
         // @ts-expect-error accessing private field.
         const isPaste = transaction.meta?.paste;
         const langLoaded = transaction.getMeta("codeHighlighting")?.langLoaded;
+        // Set when a code block's attributes change without the selection being
+        // inside it (e.g. editing the title from the title row). Without this,
+        // mapping the existing decorations through the setNodeMarkup step drops
+        // the line-number node decoration and the gutter disappears.
+        const refresh = transaction.getMeta("codeHighlighting")?.refresh;
 
         if (
           !highlighted ||
           codeBlockChanged ||
           isPaste ||
           langLoaded ||
+          refresh ||
           isRemoteTransaction(transaction)
         ) {
           // Invalidate cached entries for blocks whose language just loaded

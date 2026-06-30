@@ -1,4 +1,10 @@
-import { CopyIcon, EditIcon, ExpandedIcon, TextWrapIcon } from "outline-icons";
+import {
+  CopyIcon,
+  EditIcon,
+  ExpandedIcon,
+  OrderedListIcon,
+  TextWrapIcon,
+} from "outline-icons";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { NodeSelection } from "prosemirror-state";
 import {
@@ -81,6 +87,13 @@ export default function codeMenuItems(ctx: SelectionContext): MenuItem[] {
       icon: <TextWrapIcon />,
       tooltip: t("Wrap text"),
       active: () => node.attrs.wrap,
+      visible: !readOnly && (!isMermaid(node) || isEditingMermaid),
+    },
+    {
+      name: "toggleCodeBlockLineNumbers",
+      icon: <OrderedListIcon />,
+      tooltip: t("Line numbers"),
+      active: () => node.attrs.lineNumbers,
       visible: !readOnly && (!isMermaid(node) || isEditingMermaid),
     },
     {

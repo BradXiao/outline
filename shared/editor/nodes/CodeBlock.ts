@@ -12,6 +12,18 @@ export default class CodeBlock extends CodeFence {
     return "code_block";
   }
 
+  /**
+   * The triple-backtick input rule is fenced-code syntax and must always
+   * produce a `code_fence` (the full-featured block with a title row), never a
+   * `code_block`. Because `code_block` is registered ahead of `code_fence`, its
+   * inherited input rule would otherwise win and create a title-less block.
+   *
+   * @returns an empty list of input rules.
+   */
+  inputRules() {
+    return [];
+  }
+
   keys({ type }: { type: NodeType }) {
     return {
       Backspace: backspaceToParagraph(type),

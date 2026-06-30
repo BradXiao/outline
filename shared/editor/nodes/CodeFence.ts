@@ -3,6 +3,7 @@ import { t } from "i18next";
 import type Token from "markdown-it/lib/token.mjs";
 import { textblockTypeInputRule } from "prosemirror-inputrules";
 import type {
+  DOMOutputSpec,
   NodeSpec,
   NodeType,
   Schema,
@@ -38,10 +39,19 @@ import Mermaid, {
   type MermaidState,
 } from "../extensions/Mermaid";
 import {
+  getLabelForLanguage,
   getRecentlyUsedCodeLanguage,
   normalizeCodeLanguage,
   setRecentlyUsedCodeLanguage,
 } from "../lib/code";
+import {
+  parseCodeFenceInfo,
+  serializeCodeFenceInfo,
+} from "../lib/codeFenceInfo";
+import {
+  getCodeLanguageIcon,
+  getCodeLanguageIconDataUri,
+} from "../lib/codeLanguageIcons";
 import { isCode, isMermaid } from "../lib/isCode";
 import { isRemoteTransaction } from "../lib/multiplayer";
 import { findBlockNodes } from "../queries/findChildren";
@@ -120,17 +130,14 @@ function buildCollapseState(
     const isCollapsed = collapsedBlocks.has(pos);
 
     if (isCollapsed) {
-      const totalLines = (node.textContent.match(/\n/g)?.length ?? 0) + 1;
-      const gutterWidth = String(totalLines).length;
-      const lineNumberText = Array.from({ length: totalLines }, (_, i) =>
-        String(i + 1).padStart(gutterWidth, " ")
-      ).join("\n");
-
+      // The line-number widgets live in the code's text flow, so the collapsed
+      // block's `max-height` clip hides the gutter beyond the fold for free —
+      // no separate line-number overlay is needed here.
       decorations.push(
         Decoration.node(
           pos,
           pos + node.nodeSize,
-          { class: "collapsed", "data-line-numbers": lineNumberText },
+          { class: "collapsed" },
           { collapsed: true }
         )
       );
@@ -188,8 +195,19 @@ export default class CodeFence extends Node<CodeFenceOptions> {
           default: DEFAULT_LANGUAGE,
           validate: "string",
         },
+        title: {
+          default: null,
+          validate: "string|null",
+        },
         wrap: {
           default: false,
+          validate: "boolean",
+        },
+        lineNumbers: {
+          // Defaults to the logged in user's display preference so blocks
+          // without an explicit choice follow the global setting. Toggling the
+          // menu button writes an explicit boolean that overrides it.
+          default: this.showLineNumbers,
           validate: "boolean",
         },
       },
@@ -207,7 +225,9 @@ export default class CodeFence extends Node<CodeFenceOptions> {
             node.querySelector("code") || node,
           getAttrs: (dom: HTMLDivElement) => ({
             language: dom.dataset.language,
+            title: dom.dataset.title ?? null,
             wrap: dom.classList.contains("with-line-wrap"),
+            lineNumbers: dom.classList.contains("with-line-numbers"),
           }),
         },
         {
@@ -226,21 +246,51 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       toDOM: (node) => {
         const classes = [
           EditorStyleHelper.codeBlock,
-          node.attrs.wrap
-            ? "with-line-wrap"
-            : this.showLineNumbers
-              ? "with-line-numbers"
-              : "",
+          node.attrs.wrap ? "with-line-wrap" : "",
+          node.attrs.lineNumbers ? "with-line-numbers" : "",
         ]
           .filter(Boolean)
           .join(" ");
+
+        const language: string = node.attrs.language ?? "none";
+
+        // A static title row is rendered inside the block so it survives static
+        // HTML/PDF export, where plugin decorations (and therefore the live
+        // editor's interactive title widget) are not rendered. It is hidden in
+        // the live editor via CSS, where the widget takes over. Mermaid blocks
+        // render a diagram instead of a title, so they are skipped.
+        const titleRow: DOMOutputSpec | null = isMermaid(node)
+          ? null
+          : [
+              "div",
+              {
+                class: `${EditorStyleHelper.codeBlockTitle} ${EditorStyleHelper.codeBlockTitleStatic}`,
+                contentEditable: "false",
+              },
+              [
+                "img",
+                {
+                  class: EditorStyleHelper.codeBlockTitleIcon,
+                  src: getCodeLanguageIconDataUri(language),
+                  alt: "",
+                  "aria-hidden": "true",
+                },
+              ],
+              [
+                "span",
+                { class: EditorStyleHelper.codeBlockTitleInput },
+                node.attrs.title || getLabelForLanguage(language),
+              ],
+            ];
 
         return [
           "div",
           {
             class: classes,
             "data-language": node.attrs.language,
+            ...(node.attrs.title ? { "data-title": node.attrs.title } : {}),
           },
+          ...(titleRow ? [titleRow] : []),
           ["pre", ["code", { spellCheck: "false" }, 0]],
         ];
       },
@@ -310,6 +360,27 @@ export default class CodeFence extends Node<CodeFenceOptions> {
               ...codeBlock.node.attrs,
               wrap: !codeBlock.node.attrs.wrap,
             })
+          );
+        }
+        return true;
+      },
+      toggleCodeBlockLineNumbers: (): Command => (state, dispatch) => {
+        const codeBlock = findParentNode(isCode)(state.selection);
+        if (!codeBlock) {
+          return false;
+        }
+
+        if (dispatch) {
+          dispatch(
+            state.tr
+              .setNodeMarkup(codeBlock.pos, undefined, {
+                ...codeBlock.node.attrs,
+                lineNumbers: !codeBlock.node.attrs.lineNumbers,
+              })
+              // The selection may sit in the title input rather than inside the
+              // block, so force the highlighting plugin to rebuild the gutter
+              // decorations for the new attribute value.
+              .setMeta("codeHighlighting", { refresh: true })
           );
         }
         return true;
@@ -578,6 +649,178 @@ export default class CodeFence extends Node<CodeFenceOptions> {
     ];
   }
 
+  /**
+   * Build widget decorations rendering a title row above every (non-mermaid)
+   * code block. The row shows the language icon plus an editable title that
+   * defaults to the language label.
+   */
+  private buildTitleDecorations(doc: ProsemirrorNode): DecorationSet {
+    const decorations: Decoration[] = [];
+
+    for (const block of findBlockNodes(doc, true)) {
+      const node = block.node;
+      if (node.type.name !== this.name || isMermaid(node)) {
+        continue;
+      }
+
+      const language: string = node.attrs.language ?? "none";
+      const title: string | null = node.attrs.title ?? null;
+
+      decorations.push(
+        Decoration.widget(
+          block.pos,
+          (view: EditorView, getPos: () => number | undefined) =>
+            this.createTitleRow(view, getPos, node),
+          {
+            // Render after any widget the previous block places at this same
+            // boundary position. When two code blocks are adjacent, the prior
+            // block's collapse toggle lives at `blockEnd === this block's pos`
+            // with `side: 1`; a smaller side would order this title before that
+            // toggle, leaving the toggle wedged between the title and the code
+            // block. That breaks the `.code-block-title + .code-block` margin
+            // collapse and the toggle's own sibling-based click/hover logic.
+            side: 2,
+            // Keyed by position + icon/label inputs so it is reused across
+            // highlight/line-number rebuilds (the input is never rebuilt while
+            // focused, since editing the title dispatches no transaction). The
+            // position keeps keys unique between otherwise-identical blocks.
+            key: `code-title-${block.pos}-${language}-${title ?? ""}`,
+          }
+        )
+      );
+    }
+
+    return DecorationSet.create(doc, decorations);
+  }
+
+  /** Plugin that renders the title row widget above each code block. */
+  private codeTitlePlugin(): Plugin {
+    return new Plugin<DecorationSet>({
+      key: new PluginKey("code-block-title"),
+      state: {
+        init: (_config, state) => this.buildTitleDecorations(state.doc),
+        apply: (tr, pluginState) =>
+          tr.docChanged ? this.buildTitleDecorations(tr.doc) : pluginState,
+      },
+      props: {
+        decorations(state) {
+          return this.getState(state);
+        },
+      },
+    });
+  }
+
+  /** Create the DOM for a single code block title row. */
+  private createTitleRow(
+    view: EditorView,
+    getPos: () => number | undefined,
+    node: ProsemirrorNode
+  ): HTMLElement {
+    const language: string = node.attrs.language ?? "none";
+
+    const dom = document.createElement("div");
+    dom.className = EditorStyleHelper.codeBlockTitle;
+    dom.contentEditable = "false";
+
+    const icon = document.createElement("span");
+    icon.className = EditorStyleHelper.codeBlockTitleIcon;
+    icon.innerHTML = getCodeLanguageIcon(language);
+
+    const input = document.createElement("input");
+    input.className = EditorStyleHelper.codeBlockTitleInput;
+    input.type = "text";
+    input.spellcheck = false;
+    input.value = node.attrs.title ?? "";
+    input.placeholder = getLabelForLanguage(language);
+
+    if (!view.editable) {
+      input.readOnly = true;
+      input.tabIndex = -1;
+    }
+
+    const commit = () => {
+      const pos = getPos();
+      if (pos === undefined) {
+        return;
+      }
+      const codeNode = view.state.doc.nodeAt(pos);
+      if (!codeNode || !isCode(codeNode)) {
+        return;
+      }
+      const value = input.value.trim();
+      const title = value === "" ? null : value;
+      if ((codeNode.attrs.title ?? null) === title) {
+        return;
+      }
+      view.dispatch(
+        view.state.tr
+          .setNodeMarkup(pos, undefined, {
+            ...codeNode.attrs,
+            title,
+          })
+          // Force the highlighting plugin to rebuild line-number decorations.
+          // The selection is not inside the block (focus is in the title
+          // input), so without this the gutter would be dropped on the change.
+          .setMeta("codeHighlighting", { refresh: true })
+      );
+    };
+
+    // When the title input gains focus, move the editor selection into the
+    // code block. The block toolbar's visibility is derived from the selection
+    // sitting inside a code node, so without this it would never appear when
+    // the user clicks the title of a block their caret was not already in. The
+    // editor itself does not take DOM focus (it stays in the input), so
+    // ProseMirror does not pull the caret out of the input, and the toolbar's
+    // click-outside handler ignores clicks while an INPUT is focused.
+    const activateToolbar = () => {
+      const pos = getPos();
+      if (pos === undefined) {
+        return;
+      }
+      const codeNode = view.state.doc.nodeAt(pos);
+      if (!codeNode || !isCode(codeNode)) {
+        return;
+      }
+      const inside = pos + 1;
+      const { selection } = view.state;
+      if (selection.from >= inside && selection.to <= pos + codeNode.nodeSize) {
+        return;
+      }
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, inside))
+      );
+    };
+    if (view.editable) {
+      input.addEventListener("focus", activateToolbar);
+    }
+
+    // Keep keystrokes from reaching the ProseMirror keymap while editing.
+    const stop = (event: Event) => event.stopPropagation();
+    for (const type of ["keypress", "keyup", "input", "beforeinput", "paste"]) {
+      input.addEventListener(type, stop);
+    }
+    // Allow the input to receive focus/caret without ProseMirror handling it.
+    input.addEventListener("mousedown", stop);
+
+    input.addEventListener("keydown", (event: KeyboardEvent) => {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        input.value = node.attrs.title ?? "";
+        input.blur();
+      }
+    });
+
+    input.addEventListener("blur", commit);
+
+    dom.appendChild(icon);
+    dom.appendChild(input);
+    return dom;
+  }
+
   get plugins() {
     const createActiveCodeBlockDecoration = (state: EditorState) => {
       const codeBlock = findParentNode(isCode)(state.selection);
@@ -690,8 +933,10 @@ export default class CodeFence extends Node<CodeFenceOptions> {
           },
         },
       }),
-      // Collapse plugins - only on code_fence (not CodeBlock subclass)
-      ...(this.name === "code_fence" ? this.collapsePlugins() : []),
+      // Title row + collapse plugins - only on code_fence (not CodeBlock subclass)
+      ...(this.name === "code_fence"
+        ? [this.codeTitlePlugin(), ...this.collapsePlugins()]
+        : []),
     ].filter(Boolean) as Plugin[];
   }
 
@@ -710,7 +955,13 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       ? escapeRawTableCell(node.textContent)
       : node.textContent;
 
-    state.write("```" + (node.attrs.language || "") + "\n");
+    const info = serializeCodeFenceInfo({
+      language: node.attrs.language || "",
+      title: node.attrs.title ?? null,
+      params: {},
+    });
+
+    state.write("```" + info + "\n");
     state.text(content, false);
     state.ensureNewLine();
     state.write("```");
@@ -727,12 +978,15 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       getAttrs: (tok: Token) => {
         // The fence info string is used verbatim by markdown-it, so it can
         // carry a trailing carriage return (CRLF files), surrounding
-        // whitespace, or trailing parameters. Take the first token and map
-        // aliases from other platforms (e.g. "js" → "javascript") to an
-        // identifier the editor can highlight; unknown languages are kept
-        // as-is so they round-trip on export.
-        const token = tok.info.trim().split(/\s+/)[0] ?? "";
-        return { language: normalizeCodeLanguage(token) ?? token };
+        // whitespace, a quoted custom title, or trailing parameters. Parse it
+        // into structured parts and map language aliases from other platforms
+        // (e.g. "js" → "javascript") to an identifier the editor can highlight;
+        // unknown languages are kept as-is so they round-trip on export.
+        const info = parseCodeFenceInfo(tok.info);
+        return {
+          language: normalizeCodeLanguage(info.language) ?? info.language,
+          title: info.title,
+        };
       },
       noCloseToken: true,
     };

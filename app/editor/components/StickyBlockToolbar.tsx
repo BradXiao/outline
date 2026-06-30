@@ -4,6 +4,7 @@ import * as React from "react";
 import styled from "styled-components";
 import { isCode } from "@shared/editor/lib/isCode";
 import { findParentNode } from "@shared/editor/queries/findParentNode";
+import { EditorStyleHelper } from "@shared/editor/styles/EditorStyleHelper";
 import type { MenuItem } from "@shared/editor/types";
 import { depths, s } from "@shared/styles";
 import { HEADER_HEIGHT } from "~/components/Header";
@@ -112,11 +113,22 @@ const StickyBlockToolbar = React.forwardRef(function StickyBlockToolbar_(
     // released as the block scrolls out of view.
     const offset = menuHeight + margin;
     const bounds = element.getBoundingClientRect();
+
+    // A code block can have a title row rendered immediately above it. When
+    // present, anchor the toolbar above the title row (the visual top of the
+    // block) rather than over the code content.
+    const titleRow = element.previousElementSibling;
+    const top =
+      titleRow instanceof HTMLElement &&
+      titleRow.classList.contains(EditorStyleHelper.codeBlockTitle)
+        ? titleRow.getBoundingClientRect().top
+        : bounds.top;
+
     const next: TrackRect = {
-      top: Math.round(bounds.top - parent.top - offset),
+      top: Math.round(top - parent.top - offset),
       left: Math.round(bounds.left - parent.left),
       width: Math.round(bounds.width),
-      height: Math.round(bounds.height + offset),
+      height: Math.round(bounds.bottom - top + offset),
     };
 
     setRect((prev) => (sameRect(prev, next) ? prev : next));
