@@ -239,15 +239,20 @@ export function createOIDCRouter(
           // the `id_token_hint`, allowing the provider to scope the logout to
           // this session rather than terminating its global SSO session.
           if (endpoints.logoutURL && params.id_token) {
+            const hostname =
+              context.hostname ??
+              (
+                context as Context & {
+                  request?: { hostname?: string };
+                }
+              ).request?.hostname ??
+              new URL(env.URL).hostname;
             context.cookies.set("oidcIdToken", params.id_token, {
               httpOnly: true,
               sameSite: "lax",
               secure: env.isProduction,
               path: OIDC_LOGOUT_PATH,
-              domain: getCookieDomain(
-                context.request.hostname,
-                env.isCloudHosted
-              ),
+              domain: getCookieDomain(hostname, env.isCloudHosted),
               expires: addMonths(new Date(), 3),
             });
           }
