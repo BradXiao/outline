@@ -76,7 +76,7 @@ export function PasskeyAuthenticationProvider(props: Props) {
   // When returning to the system browser from the desktop app the ceremony is
   // triggered automatically, so the button is hidden behind the "Signing in"
   // screen. It is revealed again if the ceremony fails so the user can retry.
-  const autoStarting = isDesktopRedirect && !Desktop.isElectron();
+  const autoStarting = isDesktopRedirect && !Desktop.isDesktopApp();
 
   const runAuthentication = React.useCallback(async (verifyClient: Client) => {
     setIsAuthenticating(true);
@@ -122,7 +122,7 @@ export function PasskeyAuthenticationProvider(props: Props) {
   // When returning from the desktop app to complete passkey login, start the
   // ceremony automatically once.
   React.useEffect(() => {
-    if (isDesktopRedirect && !Desktop.isElectron() && !hasAutoStarted.current) {
+    if (isDesktopRedirect && !Desktop.isDesktopApp() && !hasAutoStarted.current) {
       hasAutoStarted.current = true;
       void runAuthentication(Client.Desktop);
     }
@@ -134,7 +134,7 @@ export function PasskeyAuthenticationProvider(props: Props) {
     // The WebAuthn ceremony cannot run inside Electron's Chromium as it lacks
     // platform authenticator support. Open the flow in the system browser,
     // which returns to the app via the outline:// deep link like SSO login.
-    if (Desktop.isElectron()) {
+    if (Desktop.isDesktopApp()) {
       window.location.href = `/auth/passkey?client=${Client.Desktop}`;
       return;
     }

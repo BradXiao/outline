@@ -30,6 +30,14 @@ export default class Desktop {
   }
 
   /**
+   * Returns true if the client is running in the Outline desktop app, as
+   * opposed to another Electron shell (e.g. an IDE embedded browser).
+   */
+  static isDesktopApp() {
+    return this.isElectron() && !!this.bridge;
+  }
+
+  /**
    * The bridge provides secure access to API's in desktop wrapper.
    */
   static bridge = window.DesktopBridge;

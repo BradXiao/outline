@@ -130,7 +130,7 @@ function Login({ children, onBack }: Props) {
   const isDesktopPasskeyRedirect =
     isPasskeyLogin &&
     query.get("client") === Client.Desktop &&
-    !Desktop.isElectron();
+    !Desktop.isDesktopApp();
 
   if (auth.authenticated && !isPasskeyLogin) {
     const postLoginPath = spendPostLoginPath();
