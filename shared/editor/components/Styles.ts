@@ -1735,14 +1735,14 @@ ul.checkbox_list {
     &:not(:has(svg)) {
       background-image: ${`url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3 0C1.34315 0 0 1.34315 0 3V11C0 12.6569 1.34315 14 3 14H11C12.6569 14 14 12.6569 14 11V3C14 1.34315 12.6569 0 11 0H3ZM3 2C2.44772 2 2 2.44772 2 3V11C2 11.5523 2.44772 12 3 12H11C11.5523 12 12 11.5523 12 11V3C12 2.44772 11.5523 2 11 2H3Z' fill='${props.theme.text.replace(
         /#/g,
-        "%23"
+        "%23",
       )}' /%3E%3C/svg%3E%0A");`}
 
       &[aria-checked=true] {
         background-image: ${`url(
             "data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3 0C1.34315 0 0 1.34315 0 3V11C0 12.6569 1.34315 14 3 14H11C12.6569 14 14 12.6569 14 11V3C14 1.34315 12.6569 0 11 0H3ZM4.26825 5.85982L5.95873 7.88839L9.70003 2.9C10.0314 2.45817 10.6582 2.36863 11.1 2.7C11.5419 3.03137 11.6314 3.65817 11.3 4.1L6.80002 10.1C6.41275 10.6164 5.64501 10.636 5.2318 10.1402L2.7318 7.14018C2.37824 6.71591 2.43556 6.08534 2.85984 5.73178C3.28412 5.37821 3.91468 5.43554 4.26825 5.85982Z' fill='${props.theme.accent.replace(
               /#/g,
-              "%23"
+              "%23",
             )}' /%3E%3C/svg%3E%0A"
         )`};
       }
@@ -2027,6 +2027,14 @@ mark {
   pre {
     white-space: pre-wrap;
     word-break: break-all;
+    overflow-x: hidden;
+  }
+
+  /* Wrapped text reflows within the row instead of overflowing it, so the
+     highlight only ever needs to fill the row - max-content would otherwise
+     size the box to the line's unwrapped text width and overflow it. */
+  .${EditorStyleHelper.codeLineHighlight} {
+    width: 100%;
   }
 }
 
@@ -2038,8 +2046,13 @@ mark {
   .line-number {
     /* The number sits at the start of each logical line's text flow. A negative
        margin equal to the pre's gutter padding pulls it back into the gutter so
-       the code (and any soft-wrapped continuation rows) line up to its right. */
+       the code (and any soft-wrapped continuation rows) line up to its right.
+       inline-block elements reserve space for descenders below the baseline by
+       default, which would make the number's box taller than the code text's;
+       vertical-align removes that gap so a highlighted number's background
+       matches the code row's height exactly. */
     display: inline-block;
+    vertical-align: top;
     width: calc(var(--line-number-gutter-width, 0) * 1em + 1em);
     margin-left: calc(-1 * (var(--line-number-gutter-width, 0) * 1em + 1.5em));
     padding-right: 0.5em;
@@ -2049,6 +2062,57 @@ mark {
     user-select: none;
     pointer-events: none;
   }
+
+  .${EditorStyleHelper.codeLineNumberHighlight} {
+    background-color: rgb(255, 238, 195);
+  }
+  .${EditorStyleHelper.codeLineHighlight}:has(+ .line-number) {
+    background-color: rgb(255, 238, 195);
+     padding-right: 0.2em;
+  }
+
+}
+
+.${EditorStyleHelper.codeLineHighlight} {
+  /* Wraps the full raw line's text (nesting the per-token syntax-highlighting
+     spans inside it) rather than being applied per-token, so it stays a
+     single element. display:inline-block (rather than inline) is what makes
+     this work: a plain inline element's background only covers its own font
+     metrics, leaving a visible gap between consecutive highlighted lines,
+     and it ignores "width" entirely so the highlight can never reach past
+     its own text. An inline-block's background instead covers its full
+     line-height with no gap. The block does not wrap (the pre it lives in is
+     white-space:pre), so a line longer than the visible row needs its
+     highlight to extend across the full horizontal scroll range, not just
+     the viewport: width:max-content grows the box to the line's full text
+     width, while min-width:100% still fills the row for lines shorter than
+     it. Plain width:100% would instead cap the box at the pre's visible
+     width, leaving the scrolled-off remainder of a long line unhighlighted. */
+  
+  vertical-align: top;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 100%;
+  background-color: rgb(255, 238, 195);
+}
+
+.${EditorStyleHelper.codeLineHighlightEmpty} {
+  /* An empty line has no text to size the inline-block's height from, which
+     collapses it to zero height, so pin it explicitly to the pre's
+     line-height. */
+  height: 1.4em;
+}
+
+.${EditorStyleHelper.codeLineSeparator} {
+  display: block;
+  margin: 0 -1em;
+  padding: 0 1em;
+  border-top: 1.4px dotted rgb(0 0 0 / 36%);
+  border-bottom: 1.4px dotted rgb(0 0 0 / 36%);
+  color: ${props.theme.textTertiary};
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
 }
 
 .${EditorStyleHelper.codeBlock}.collapsed {
@@ -2157,7 +2221,7 @@ pre {
   padding: 0.75em 1em;
   line-height: 1.4em;
   position: relative;
-  background: ${props.theme.codeBackground};
+  background-color: ${props.theme.codeBackground};
   border-radius: 4px;
   border: 1px solid ${props.theme.codeBorder};
   margin: .5em 0;
@@ -2183,6 +2247,8 @@ pre {
     background: none;
     padding: 0;
     border: 0;
+    position: relative;
+    z-index: 0;
   }
 }
 
@@ -2296,7 +2362,7 @@ table {
       background-size: 16px 16px;
       background-position: 50% 50%;
       background-image: url("data:image/svg+xml;base64,${btoa(
-        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 5C11.4477 5 11 5.44772 11 6V11H6C5.44772 11 5 11.4477 5 12C5 12.5523 5.44772 13 6 13H11V18C11 18.5523 11.4477 19 12 19C12.5523 19 13 18.5523 13 18V13H18C18.5523 13 19 12.5523 19 12C19 11.4477 18.5523 11 18 11H13V6C13 5.44772 12.5523 5 12 5Z" fill="white"/></svg>'
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 5C11.4477 5 11 5.44772 11 6V11H6C5.44772 11 5 11.4477 5 12C5 12.5523 5.44772 13 6 13H11V18C11 18.5523 11.4477 19 12 19C12.5523 19 13 18.5523 13 18V13H18C18.5523 13 19 12.5523 19 12C19 11.4477 18.5523 11 18 11H13V6C13 5.44772 12.5523 5 12 5Z" fill="white"/></svg>',
       )}")
     }
 

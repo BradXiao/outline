@@ -2,11 +2,18 @@ import { flattenDeep } from "es-toolkit/compat";
 import type { Node } from "prosemirror-model";
 import type { Transaction } from "prosemirror-state";
 import { Plugin, PluginKey } from "prosemirror-state";
+import type { EditorView } from "prosemirror-view";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import type refractorType from "refractor/core";
 import { getLoaderForLanguage, getRefractorLangForLanguage } from "../lib/code";
+import {
+  isLineHighlighted,
+  parseCodeFenceHighlight,
+  parseCodeFenceLineNumbering,
+} from "../lib/codeFenceInfo";
 import { isRemoteTransaction } from "../lib/multiplayer";
 import { findBlockNodes } from "../queries/findChildren";
+import { EditorStyleHelper } from "../styles/EditorStyleHelper";
 
 type ParsedNode = {
   text: string;
@@ -17,9 +24,13 @@ type ParsedNode = {
  * Build the DOM for a single line-number gutter cell. The number lives in the
  * code's text flow (as a widget decoration) rather than a CSS overlay, so a
  * soft-wrapped line keeps exactly one number and its continuation rows get a
- * blank gutter.
+ * blank gutter. The gutter cell paints its own highlight background when its
+ * line matches an `hl:` spec, since the code text's highlight span (further
+ * along the same line) cannot safely bleed left into the gutter without
+ * overlapping this cell.
  *
  * @param lineNumber - the one-based line number to render.
+ * @param highlighted - whether the line matches an `hl:` spec.
  * @returns the gutter cell element.
  */
 function createLineNumber(lineNumber: number): HTMLElement {
@@ -27,6 +38,34 @@ function createLineNumber(lineNumber: number): HTMLElement {
   span.className = "line-number";
   span.contentEditable = "false";
   span.textContent = String(lineNumber);
+  return span;
+}
+
+/**
+ * Build the DOM for the separator widget marking an `ln:` numbering jump. The
+ * raw line that follows is still rendered in full; this only calls out the
+ * gap in the displayed numbering.
+ *
+ * @returns the separator element.
+ */
+function createLineSeparator(): HTMLElement {
+  const span = document.createElement("span");
+  span.className = EditorStyleHelper.codeLineSeparator;
+  span.contentEditable = "false";
+  span.textContent = "⋯";
+  return span;
+}
+
+/**
+ * Build the DOM for a highlighted empty line. An empty line has no text for
+ * an inline decoration to attach to, so it needs a standalone element to
+ * carry the highlight background across the full row.
+ *
+ * @returns the highlight element.
+ */
+function createEmptyLineHighlight(): HTMLElement {
+  const span = document.createElement("span");
+  span.className = `${EditorStyleHelper.codeLineHighlight} ${EditorStyleHelper.codeLineHighlightEmpty}`;
   return span;
 }
 
@@ -70,13 +109,112 @@ async function loadLanguage(language: string) {
       // oxlint-disable-next-line no-console
       console.error(
         `Failed to load language ${language} for code highlighting`,
-        err
+        err,
       );
       delete languagePromises[language]; // Remove failed promise from cache
       return undefined;
     });
 
   return languagePromises[language];
+}
+
+function getLineHeight(element: HTMLElement): number {
+  const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
+
+  if (Number.isFinite(lineHeight)) {
+    return lineHeight;
+  }
+
+  return 20;
+}
+
+function clearCodeLineHighlightOverlays(root: HTMLElement) {
+  root
+    .querySelectorAll(`.`)
+    .forEach((element) => element.remove());
+}
+
+function syncCodeLineHighlightOverlays(view: EditorView, name: string) {
+  if (!(view.dom instanceof HTMLElement)) {
+    return;
+  }
+
+  clearCodeLineHighlightOverlays(view.dom);
+
+  const blocks: { node: Node; pos: number }[] = findBlockNodes(
+    view.state.doc,
+    true,
+  ).filter((item) => item.node.type.name === name);
+
+  blocks.forEach((block) => {
+    const highlightSpecs = parseCodeFenceHighlight(block.node.attrs.hl ?? null);
+
+    if (!highlightSpecs.length) {
+      return;
+    }
+
+    const blockElement = view.nodeDOM(block.pos);
+    if (!(blockElement instanceof HTMLElement)) {
+      return;
+    }
+
+    const pre = blockElement.querySelector("pre");
+    if (!(pre instanceof HTMLElement)) {
+      return;
+    }
+
+    const preStyles = getComputedStyle(pre);
+    const preRect = pre.getBoundingClientRect();
+    const borderTop = Number.parseFloat(preStyles.borderTopWidth) || 0;
+    const lineHeight = getLineHeight(pre);
+    const text = block.node.textContent;
+    let lineNumber = 1;
+    let linePos = block.pos + 1;
+
+    for (let i = 0; i <= text.length; i++) {
+      const atNewline = text[i] === "\n";
+      if (!atNewline && i < text.length) {
+        continue;
+      }
+
+      const lineEnd = block.pos + 1 + i;
+      const lineText = text.slice(linePos - block.pos - 1, i);
+      const highlighted = isLineHighlighted(
+        highlightSpecs,
+        lineNumber,
+        lineText,
+      );
+
+      if (highlighted) {
+        try {
+          const startCoords = view.coordsAtPos(linePos);
+          const endCoords = view.coordsAtPos(lineEnd);
+          const top = Math.max(
+            0,
+            startCoords.top - preRect.top + pre.scrollTop - borderTop,
+          );
+          const height = Math.max(
+            lineHeight,
+            endCoords.bottom - startCoords.top,
+          );
+          const highlight = document.createElement("div");
+
+          highlight.className = EditorStyleHelper.codeLineHighlight;
+          highlight.contentEditable = "false";
+          highlight.style.top = `px`;
+          highlight.style.height = `px`;
+          pre.insertBefore(highlight, pre.firstChild);
+        } catch {
+          // The editor view may not have DOM coordinates for a block while it is
+          // being mounted or unmounted. It will be measured again on the next
+          // view update.
+        }
+      }
+
+      lineNumber += 1;
+      linePos = atNewline ? lineEnd + 1 : lineEnd;
+    }
+  });
 }
 
 function getDecorations({
@@ -94,12 +232,12 @@ function getDecorations({
   const decorations: Decoration[] = [];
   const blocks: { node: Node; pos: number }[] = findBlockNodes(
     doc,
-    true
+    true,
   ).filter((item) => item.node.type.name === name);
 
   function parseNodes(
     nodes: refractorType.RefractorNode[],
-    classNames: string[] = []
+    classNames: string[] = [],
   ): {
     text: string;
     classes: string[];
@@ -115,7 +253,7 @@ function getDecorations({
           text: node.value,
           classes: classNames,
         };
-      })
+      }),
     );
   }
 
@@ -129,42 +267,123 @@ function getDecorations({
       // Per-block line number preference. Falls back to the editor-wide default
       // for blocks that predate the attribute (loaded without it set).
       const showLineNumbers = block.node.attrs.lineNumbers ?? lineNumbers;
-      if (showLineNumbers) {
-        const text = block.node.textContent;
-        const lineCount = (text.match(/\n/g) || []).length + 1;
-        const gutterWidth = String(lineCount).length;
+      const text = block.node.textContent;
+      const highlightSpecs = parseCodeFenceHighlight(
+        block.node.attrs.hl ?? null,
+      );
+      const numbering = parseCodeFenceLineNumbering(
+        block.node.attrs.ln ?? null,
+      );
+      const lineCount = (text.match(/\n/g) || []).length + 1;
 
+      // ln: jumps only affect the displayed number, so the widest possible
+      // number also needs to account for every jump's size.
+      const jumps = numbering.jumps;
+      const totalJump = jumps.reduce(
+        (sum, jump) => sum + (jump.end - jump.start + 1),
+        0,
+      );
+      const gutterWidth = String(
+        numbering.start + lineCount - 1 + totalJump,
+      ).length;
+
+      // Walk the block's lines once, anchoring line-number widgets, hl:
+      // highlight decorations, and the ln: jump separator at each line's
+      // start position. The first line begins at the content start
+      // (block.pos + 1); every subsequent line begins one position after its
+      // preceding newline. Every raw line is always rendered in full — a
+      // jump only ever changes which number is displayed next to a line, it
+      // never removes any of the block's own text from view.
+      let lineNumber = 1;
+      let linePos = block.pos + 1;
+      let jumpOffset = 0;
+
+      for (let i = 0; i <= text.length; i++) {
+        const atNewline = text[i] === "\n";
+        if (!atNewline && i < text.length) {
+          continue;
+        }
+
+        const lineEnd = block.pos + 1 + i;
+        const lineText = text.slice(linePos - block.pos - 1, i);
+
+        // Jump ranges are specified in the displayed numbering, not raw line
+        // position, so each one must be matched against the number this line
+        // would otherwise show — which already accounts for any earlier
+        // jump's offset — rather than against its raw line count. Matching
+        // against the raw count instead would work for a single jump (where
+        // the two coincide) but misfire for a second jump once the first has
+        // shifted the display numbers away from the raw count.
+        const wouldBeDisplayNumber = numbering.start + lineNumber - 1 + jumpOffset;
+        const jump = jumps.find((range) => range.start === wouldBeDisplayNumber);
+        if (jump) {
+          jumpOffset += jump.end - jump.start + 1;
+          lineDecorations.push(
+            Decoration.widget(linePos, createLineSeparator, {
+              side: -1,
+              key: `line-separator-${block.pos}-${jump.start}`,
+            }),
+          );
+        }
+
+        // hl: specs are authored against the displayed numbering (what the
+        // user actually sees in the gutter), not the raw line count, so the
+        // match must use the same jump-adjusted number as the gutter widget
+        // below rather than the raw lineNumber.
+        const displayNumber = numbering.start + lineNumber - 1 + jumpOffset;
+        const highlighted = isLineHighlighted(
+          highlightSpecs,
+          displayNumber,
+          lineText,
+        );
+
+        if (highlighted) {
+          if (lineEnd > linePos) {
+            lineDecorations.push(
+              Decoration.inline(linePos, lineEnd, {
+                class: EditorStyleHelper.codeLineHighlight,
+              }),
+            );
+          } else {
+            // An empty line has no text for an inline decoration to attach
+            // to, so fall back to a standalone element for the background.
+            lineDecorations.push(
+              Decoration.widget(linePos, createEmptyLineHighlight, {
+                side: 0,
+                key: `line-highlight-empty-${block.pos}-${lineNumber}`,
+              }),
+            );
+          }
+        }
+
+        if (showLineNumbers) {
+          lineDecorations.push(
+            Decoration.widget(
+              linePos,
+              () => createLineNumber(displayNumber, highlighted),
+              {
+                side: -1,
+                key: `line-number-${displayNumber}-${gutterWidth}-${highlighted}`,
+              },
+            ),
+          );
+        }
+
+        lineNumber += 1;
+        linePos = atNewline ? lineEnd + 1 : lineEnd;
+      }
+
+      if (showLineNumbers) {
         // Reserve the gutter space and expose its width to the CSS that sizes
-        // each number. A single node decoration keeps this cheap.
+        // each number.
         lineDecorations.push(
           Decoration.node(
             block.pos,
             block.pos + block.node.nodeSize,
             { style: `--line-number-gutter-width: ${gutterWidth};` },
-            { key: `line-gutter-${gutterWidth}` }
-          )
+            { key: `code-block-style-${gutterWidth}` },
+          ),
         );
-
-        // One widget per logical line, anchored at the line's start position.
-        // The first line begins at the content start (block.pos + 1); every
-        // subsequent line begins one position after its preceding newline.
-        const pushNumber = (pos: number, lineNumber: number) => {
-          lineDecorations.push(
-            Decoration.widget(pos, () => createLineNumber(lineNumber), {
-              side: -1,
-              key: `line-number-${lineNumber}-${gutterWidth}`,
-            })
-          );
-        };
-
-        let lineNumber = 1;
-        pushNumber(block.pos + 1, lineNumber);
-        for (let i = 0; i < text.length; i++) {
-          if (text[i] === "\n") {
-            lineNumber += 1;
-            pushNumber(block.pos + 1 + i + 1, lineNumber);
-          }
-        }
       }
 
       cache[block.pos] = {
@@ -195,9 +414,10 @@ function getDecorations({
           .map((node) =>
             Decoration.inline(node.from, node.to, {
               class: node.classes.join(" "),
-            })
+            }),
           )
           .concat(lineDecorations);
+
 
         cache[block.pos] = {
           node: block.node,
@@ -284,7 +504,7 @@ export function CodeHighlighting({
             view.dispatch(
               view.state.tr.setMeta("codeHighlighting", {
                 langLoaded: true,
-              })
+              }),
             );
           }
         });
@@ -302,10 +522,10 @@ export function CodeHighlighting({
                 view.dispatch(
                   view.state.tr.setMeta("codeHighlighting", {
                     langLoaded: loaded,
-                  })
+                  }),
                 );
               }
-            }
+            },
           );
         },
       };

@@ -60,6 +60,18 @@ export class EditorStyleHelper {
   /** Static title row rendered inside the block for export (no decorations) */
   static readonly codeBlockTitleStatic = "code-block-title-static";
 
+  /** A code line matched by the fence's `hl:` highlight spec */
+  static readonly codeLineHighlight = "code-line-highlight";
+
+  /** Modifier for a highlighted line with no text to attach the background to */
+  static readonly codeLineHighlightEmpty = "code-line-highlight-empty";
+
+  /** Modifier for the line-number gutter cell of a highlighted line */
+  static readonly codeLineNumberHighlight = "line-number-highlight";
+
+  /** Separator widget marking a `ln:` numbering jump */
+  static readonly codeLineSeparator = "code-line-separator";
+
   // Diffs
 
   static readonly diffInsertion = "diff-insertion";

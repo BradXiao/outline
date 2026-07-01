@@ -46,7 +46,9 @@ import {
 } from "../lib/code";
 import {
   parseCodeFenceInfo,
+  parseCodeFenceParams,
   serializeCodeFenceInfo,
+  serializeCodeFenceParams,
 } from "../lib/codeFenceInfo";
 import {
   getCodeLanguageIcon,
@@ -199,6 +201,14 @@ export default class CodeFence extends Node<CodeFenceOptions> {
           default: null,
           validate: "string|null",
         },
+        hl: {
+          default: null,
+          validate: "string|null",
+        },
+        ln: {
+          default: null,
+          validate: "string|null",
+        },
         wrap: {
           default: false,
           validate: "boolean",
@@ -226,6 +236,8 @@ export default class CodeFence extends Node<CodeFenceOptions> {
           getAttrs: (dom: HTMLDivElement) => ({
             language: dom.dataset.language,
             title: dom.dataset.title ?? null,
+            hl: dom.dataset.hl ?? null,
+            ln: dom.dataset.ln ?? null,
             wrap: dom.classList.contains("with-line-wrap"),
             lineNumbers: dom.classList.contains("with-line-numbers"),
           }),
@@ -289,6 +301,8 @@ export default class CodeFence extends Node<CodeFenceOptions> {
             class: classes,
             "data-language": node.attrs.language,
             ...(node.attrs.title ? { "data-title": node.attrs.title } : {}),
+            ...(node.attrs.hl ? { "data-hl": node.attrs.hl } : {}),
+            ...(node.attrs.ln ? { "data-ln": node.attrs.ln } : {}),
           },
           ...(titleRow ? [titleRow] : []),
           ["pre", ["code", { spellCheck: "false" }, 0]],
@@ -738,6 +752,13 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       input.tabIndex = -1;
     }
 
+    // The raw title/hl/ln syntax the input held when it was last focused, used
+    // to restore an in-progress edit on Escape.
+    let editingSnapshot = "";
+
+    // Parse the input's raw syntax and commit title/hl/ln, then collapse the
+    // display back to just the title (the input only shows the full syntax
+    // while focused).
     const commit = () => {
       const pos = getPos();
       if (pos === undefined) {
@@ -747,32 +768,42 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       if (!codeNode || !isCode(codeNode)) {
         return;
       }
-      const value = input.value.trim();
-      const title = value === "" ? null : value;
-      if ((codeNode.attrs.title ?? null) === title) {
-        return;
+      const parsed = parseCodeFenceParams(input.value.trim());
+      const changed =
+        (codeNode.attrs.title ?? null) !== parsed.title ||
+        (codeNode.attrs.hl ?? null) !== parsed.hl ||
+        (codeNode.attrs.ln ?? null) !== parsed.ln;
+
+      if (changed) {
+        view.dispatch(
+          view.state.tr
+            .setNodeMarkup(pos, undefined, {
+              ...codeNode.attrs,
+              title: parsed.title,
+              hl: parsed.hl,
+              ln: parsed.ln,
+            })
+            // Force the highlighting plugin to rebuild line-number and
+            // highlight decorations. The selection is not inside the block
+            // (focus is in the title input), so without this the gutter and
+            // highlights would be dropped on the change.
+            .setMeta("codeHighlighting", { refresh: true })
+        );
       }
-      view.dispatch(
-        view.state.tr
-          .setNodeMarkup(pos, undefined, {
-            ...codeNode.attrs,
-            title,
-          })
-          // Force the highlighting plugin to rebuild line-number decorations.
-          // The selection is not inside the block (focus is in the title
-          // input), so without this the gutter would be dropped on the change.
-          .setMeta("codeHighlighting", { refresh: true })
-      );
+
+      input.value = parsed.title ?? "";
     };
 
-    // When the title input gains focus, move the editor selection into the
-    // code block. The block toolbar's visibility is derived from the selection
-    // sitting inside a code node, so without this it would never appear when
-    // the user clicks the title of a block their caret was not already in. The
-    // editor itself does not take DOM focus (it stays in the input), so
-    // ProseMirror does not pull the caret out of the input, and the toolbar's
-    // click-outside handler ignores clicks while an INPUT is focused.
-    const activateToolbar = () => {
+    // When the title input gains focus, swap its display from the title-only
+    // text to the full editable syntax (title:/hl:/ln:), and move the editor
+    // selection into the code block. The block toolbar's visibility is
+    // derived from the selection sitting inside a code node, so without this
+    // it would never appear when the user clicks the title of a block their
+    // caret was not already in. The editor itself does not take DOM focus (it
+    // stays in the input), so ProseMirror does not pull the caret out of the
+    // input, and the toolbar's click-outside handler ignores clicks while an
+    // INPUT is focused.
+    const handleFocus = () => {
       const pos = getPos();
       if (pos === undefined) {
         return;
@@ -781,6 +812,14 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       if (!codeNode || !isCode(codeNode)) {
         return;
       }
+
+      editingSnapshot = serializeCodeFenceParams({
+        title: codeNode.attrs.title ?? null,
+        hl: codeNode.attrs.hl ?? null,
+        ln: codeNode.attrs.ln ?? null,
+      });
+      input.value = editingSnapshot;
+
       const inside = pos + 1;
       const { selection } = view.state;
       if (selection.from >= inside && selection.to <= pos + codeNode.nodeSize) {
@@ -791,7 +830,7 @@ export default class CodeFence extends Node<CodeFenceOptions> {
       );
     };
     if (view.editable) {
-      input.addEventListener("focus", activateToolbar);
+      input.addEventListener("focus", handleFocus);
     }
 
     // Keep keystrokes from reaching the ProseMirror keymap while editing.
@@ -809,7 +848,7 @@ export default class CodeFence extends Node<CodeFenceOptions> {
         input.blur();
       } else if (event.key === "Escape") {
         event.preventDefault();
-        input.value = node.attrs.title ?? "";
+        input.value = editingSnapshot;
         input.blur();
       }
     });
@@ -958,7 +997,8 @@ export default class CodeFence extends Node<CodeFenceOptions> {
     const info = serializeCodeFenceInfo({
       language: node.attrs.language || "",
       title: node.attrs.title ?? null,
-      params: {},
+      hl: node.attrs.hl ?? null,
+      ln: node.attrs.ln ?? null,
     });
 
     state.write("```" + info + "\n");
@@ -986,6 +1026,8 @@ export default class CodeFence extends Node<CodeFenceOptions> {
         return {
           language: normalizeCodeLanguage(info.language) ?? info.language,
           title: info.title,
+          hl: info.hl,
+          ln: info.ln,
         };
       },
       noCloseToken: true,
