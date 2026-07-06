@@ -1,4 +1,4 @@
-import type { NodeType } from "prosemirror-model";
+import type { NodeSpec, NodeType } from "prosemirror-model";
 import backspaceToParagraph from "../commands/backspaceToParagraph";
 import { selectAll } from "../commands/selectAll";
 import CodeFence from "./CodeFence";
@@ -6,6 +6,17 @@ import CodeFence from "./CodeFence";
 export default class CodeBlock extends CodeFence {
   get name() {
     return "code_block";
+  }
+
+  get schema(): NodeSpec {
+    const schema = super.schema;
+    return {
+      ...schema,
+      parseDOM: schema.parseDOM?.map((rule) => ({
+        ...rule,
+        priority: 40,
+      })),
+    };
   }
 
   get markdownToken() {

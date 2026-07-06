@@ -1,3 +1,4 @@
+import { DOMParser as ProsemirrorDOMParser } from "prosemirror-model";
 import { extensionManager, schema } from "../../test/editor";
 
 const serializer = extensionManager.serializer();
@@ -5,6 +6,8 @@ const parser = extensionManager.parser({
   schema,
   plugins: extensionManager.rulePlugins,
 });
+
+const domParser = ProsemirrorDOMParser.fromSchema(schema);
 
 /**
  * Wraps a block node in a single-cell table so cell serialization/parsing can
@@ -62,16 +65,30 @@ it("round-trips a notice inside a table cell", () => {
 });
 
 it("round-trips a code fence inside a table cell", () => {
-  // A ``` fence always parses to a code_block node (see CodeFence.parseMarkdown),
-  // so the round-trippable shape is code_block regardless of the table.
   const doc = tableWith({
-    type: "code_block",
+    type: "code_fence",
     attrs: { language: "javascript", wrap: false },
     content: [{ type: "text", text: "a | b\nc \\ d" }],
   });
 
   const markdown = serializer.serialize(doc, { commonMark: true });
   expect(parser.parse(markdown)!.toJSON()).toEqual(doc.toJSON());
+});
+
+it("parses pasted code HTML as a code fence", () => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const element = document.createElement("div");
+  element.innerHTML = `<pre><code class="language-js">const hello = &quot;world&quot;;\n</code></pre>`;
+
+  const doc = domParser.parse(element);
+  const codeBlock = doc.content.firstChild;
+
+  expect(codeBlock?.type.name).toBe("code_fence");
+  expect(codeBlock?.attrs.language).toBe("javascript");
+  expect(codeBlock?.textContent).toBe(`const hello = "world";\n`);
 });
 
 it("round-trips a toggle block inside a table cell", () => {

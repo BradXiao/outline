@@ -93,7 +93,8 @@ export default class PasteHandler extends Extension {
             // was pasted.
             const vscodeMeta = vscode ? JSON.parse(vscode) : undefined;
             const pasteCodeLanguage = vscodeMeta?.mode;
-            const supportsCodeBlock = !!state.schema.nodes.code_block;
+            const codeBlockType =
+              state.schema.nodes.code_fence ?? state.schema.nodes.code_block;
             const supportsCodeMark = !!state.schema.marks.code_inline;
 
             if (!this.shiftKey) {
@@ -116,20 +117,19 @@ export default class PasteHandler extends Extension {
               // detection and skip the paste menu.
               const trimmedText = text.trim();
               if (!state.selection.empty) {
-                  const markdownLink = /^\[[^\]]*\]\((.*)\)$/s;
-                  let candidate = trimmedText;
-                  let m = candidate.match(markdownLink);
-                  while (m) {
-                    candidate = m[1].trim();
-                    m = candidate.match(markdownLink);
-                  }
-                  if (candidate !== trimmedText && isUrl(candidate)) {
-                      toggleMark(this.editor.schema.marks.link, {
-                      href: candidate,
-                    })(state, dispatch);
-                    return true;
-                  }
-                  
+                const markdownLink = /^\[[^\]]*\]\((.*)\)$/s;
+                let candidate = trimmedText;
+                let m = candidate.match(markdownLink);
+                while (m) {
+                  candidate = m[1].trim();
+                  m = candidate.match(markdownLink);
+                }
+                if (candidate !== trimmedText && isUrl(candidate)) {
+                  toggleMark(this.editor.schema.marks.link, {
+                    href: candidate,
+                  })(state, dispatch);
+                  return true;
+                }
               }
               if (isUrl(trimmedText)) {
                 // If there is selected text then we want to wrap it in a link to the url
@@ -241,12 +241,12 @@ export default class PasteHandler extends Extension {
               }
 
               if (pasteCodeLanguage && pasteCodeLanguage !== "markdown") {
-                if (text.includes("\n") && supportsCodeBlock) {
+                if (text.includes("\n") && codeBlockType) {
                   event.preventDefault();
                   view.dispatch(
                     state.tr
                       .replaceSelectionWith(
-                        state.schema.nodes.code_block.create({
+                        codeBlockType.create({
                           language: Object.keys(codeLanguages).includes(
                             vscodeMeta.mode
                           )

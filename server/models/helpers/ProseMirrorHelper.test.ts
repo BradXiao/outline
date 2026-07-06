@@ -770,7 +770,7 @@ describe("ProsemirrorHelper", () => {
       expect(doc.content.childCount).toBe(1);
 
       const codeBlock = doc.content.child(0);
-      expect(codeBlock.type.name).toBe("code_block");
+      expect(codeBlock.type.name).toBe("code_fence");
       expect(codeBlock.attrs.language).toBe("javascript");
       expect(codeBlock.textContent).toBe("const hello = 'world';");
     });
