@@ -1,6 +1,6 @@
 import { flattenDeep } from "es-toolkit/compat";
 import type { Node } from "prosemirror-model";
-import type { Transaction } from "prosemirror-state";
+import type { Selection, Transaction } from "prosemirror-state";
 import { Plugin, PluginKey } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { Decoration, DecorationSet } from "prosemirror-view";
@@ -77,6 +77,21 @@ const languagePromises: Record<
 > = {};
 
 let refractor: typeof refractorType | undefined;
+
+function isDecorationAtSelection(
+  decoration: Decoration,
+  selection: Selection
+): boolean {
+  if (!decoration.spec.codeSyntax) {
+    return false;
+  }
+
+  if (selection.empty) {
+    return decoration.from <= selection.from && selection.from <= decoration.to;
+  }
+
+  return decoration.from < selection.to && decoration.to > selection.from;
+}
 
 /** Lazily load refractor core. */
 async function getRefractor() {
@@ -221,6 +236,7 @@ function getDecorations({
   doc,
   name,
   lineNumbers,
+  selection,
 }: {
   /** The prosemirror document to operate on. */
   doc: Node;
@@ -228,6 +244,8 @@ function getDecorations({
   name: string;
   /** Whether to include decorations representing line numbers */
   lineNumbers?: boolean;
+  /** The current selection, used to avoid wrapping the active caret. */
+  selection: Selection;
 }) {
   const decorations: Decoration[] = [];
   const blocks: { node: Node; pos: number }[] = findBlockNodes(
@@ -412,9 +430,14 @@ function getDecorations({
           })
           .filter((node) => node.classes && node.classes.length)
           .map((node) =>
-            Decoration.inline(node.from, node.to, {
-              class: node.classes.join(" "),
-            }),
+            Decoration.inline(
+              node.from,
+              node.to,
+              {
+                class: node.classes.join(" "),
+              },
+              { codeSyntax: true }
+            ),
           )
           .concat(lineDecorations);
 
@@ -429,6 +452,10 @@ function getDecorations({
     }
 
     cache[block.pos]?.decorations.forEach((decoration) => {
+      if (isDecorationAtSelection(decoration, selection)) {
+        return;
+      }
+
       decorations.push(decoration);
     });
   });
@@ -471,10 +498,14 @@ export function CodeHighlighting({
         // mapping the existing decorations through the setNodeMarkup step drops
         // the line-number node decoration and the gutter disappears.
         const refresh = transaction.getMeta("codeHighlighting")?.refresh;
+        const codeSelectionChanged =
+          transaction.selectionSet &&
+          [nodeName, previousNodeName].includes(name);
 
         if (
           !highlighted ||
           codeBlockChanged ||
+          codeSelectionChanged ||
           isPaste ||
           langLoaded ||
           refresh ||
@@ -491,7 +522,12 @@ export function CodeHighlighting({
             }
           }
           highlighted = true;
-          return getDecorations({ doc: transaction.doc, name, lineNumbers });
+          return getDecorations({
+            doc: transaction.doc,
+            name,
+            lineNumbers,
+            selection: state.selection,
+          });
         }
 
         return decorationSet.map(transaction.mapping, transaction.doc);
