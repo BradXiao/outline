@@ -62,7 +62,7 @@ function DocumentTasks({ document }: Props) {
           $animated={done && previousDone === false}
         />
       ) : (
-        <CircularProgressBar percentage={tasksPercentage} />
+        <CircularProgressBar percentage={tasksPercentage} label={message} />
       )}
       {message}
     </Flex>
