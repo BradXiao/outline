@@ -1866,6 +1866,7 @@ mark {
   gap: 8px;
   margin: 0.5em 0 0;
   padding: 5px 12px;
+  box-sizing: border-box;
   background: ${props.theme.codeBackground};
   border: 1px solid ${props.theme.codeBorder};
   border-bottom: 0;

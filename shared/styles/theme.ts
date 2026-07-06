@@ -147,7 +147,7 @@ export const buildLightTheme = (input: Partial<Colors>): DefaultTheme => {
     menuItemSelected: colors.warmGrey,
     menuBackground: colors.white,
     menuShadow:
-      "0 0 0 1px rgb(0 0 0 / 2%), 0 4px 8px rgb(0 0 0 / 8%), 0 2px 4px rgb(0 0 0 / 0%), 0 30px 40px rgb(0 0 0 / 8%)",
+      "0 0 0 1px rgb(0 0 0 / 2%), 0 4px 8px rgb(0 0 0 / 8%), 0 2px 4px rgb(0 0 0 / 0%), 0 5px 10px rgb(0 0 0 / 8%)",
     divider: colors.slateLight,
     titleBarDivider: colors.slateLight,
     inputBorder: colors.slateLight,
