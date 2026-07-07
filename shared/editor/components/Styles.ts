@@ -1706,6 +1706,15 @@ ol li[draggable=true]::before {
   cursor: grabbing;
 }
 
+.step-list > .step-list-item::before {
+  left: -25px;
+}
+
+.step-list > .step-list-item:dir(rtl)::before {
+  left: auto;
+  right: -25px;
+}
+
 ul > li.counter-2,
 ol li.counter-2 {
   &::before {
