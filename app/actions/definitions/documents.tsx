@@ -258,7 +258,7 @@ function canCreateSiblingDocument(
   return document.parentDocumentId
     ? stores.policies.abilities(document.parentDocumentId).createChildDocument
     : !!document.collectionId &&
-        stores.policies.abilities(document.collectionId).createDocument;
+    stores.policies.abilities(document.collectionId).createDocument;
 }
 
 export const createNestedDocument = createInternalLinkAction({
@@ -1030,6 +1030,39 @@ export const printDocument = createAction({
   visible: ({ activeDocumentId }) => !!(activeDocumentId && window.print),
   perform: () => {
     setTimeout(window.print, 0);
+  },
+});
+
+export const openDocumentInNewWindow = createAction({
+  name: ({ t }) => t("Open in new window"),
+  analyticsName: "Open document in new window",
+  section: ActiveDocumentSection,
+  icon: <OpenIcon />,
+  visible: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId) {
+      return false;
+    }
+
+    const document = stores.documents.get(activeDocumentId);
+    return !!document && !document.isDeleted;
+  },
+  perform: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId) {
+      return;
+    }
+
+    const document = stores.documents.get(activeDocumentId);
+    if (!document) {
+      return;
+    }
+
+    const link = window.document.createElement("a");
+    link.href = urlify(documentPath(document));
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    window.document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 });
 

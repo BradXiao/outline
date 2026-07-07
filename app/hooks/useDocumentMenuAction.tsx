@@ -26,6 +26,7 @@ import {
   openDocumentComments,
   openDocumentHistory,
   openDocumentInsights,
+  openDocumentInNewWindow,
   openDocumentInDesktop,
   downloadDocument,
   copyDocument,
@@ -79,6 +80,7 @@ export function useDocumentMenuAction({
       unstarDocument,
       subscribeDocument,
       unsubscribeDocument,
+      openDocumentInNewWindow,
       createAction({
         name: `${t("Find and replace")}…`,
         section: ActiveDocumentSection,
