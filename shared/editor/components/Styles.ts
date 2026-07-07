@@ -1503,6 +1503,97 @@ ol li {
   }
 }
 
+.step-list {
+  counter-reset: step-list-step;
+  margin: 1rem 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step-list-subtitle {
+  margin: 0 0 12px;
+  font-style: italic;
+  color: ${props.theme.textSecondary};
+}
+
+.step-list-subtitle:empty {
+  display: none;
+  margin: 0;
+}
+
+.step-list-item {
+  position: relative;
+  padding: 0 0 0 2em;
+  counter-increment: step-list-step;
+}
+
+.step-list-item + .step-list-item {
+  margin-top: 20px;
+}
+
+.step-list-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 30px;
+  width: 1px;
+  bottom: -17px;
+  background-image: radial-gradient(circle closest-side, rgb(102, 119, 143) 100%, transparent 100%);
+  background-position: center top;
+  background-repeat: repeat-y;
+  background-size: 1px 3px;
+}
+
+.step-list-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid ${props.theme.stepItemMarkerBorder};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85em;
+  margin-top: 2px;
+  color: ${props.theme.text};
+}
+
+.step-list-marker::before {
+  content: counter(step-list-step);
+}
+
+.step-list-body {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 28px;
+  padding-top: 1px;
+}
+
+.step-list-body > p {
+  margin: 0;
+}
+
+.step-list-body > p:first-child {
+  font-weight: 600;
+  color: ${props.theme.text};
+}
+
+.step-list-body > .step-list-subtitle {
+  font-size: .9rem;
+}
+
+.step-list-body > :not(p:first-child):not(.step-list-subtitle) {
+  color: ${props.theme.text};
+}
+
+.step-list-body > p:not(:first-child):not(.step-list-subtitle) {
+  font-size: 1em;
+  line-height: 1.6;
+}
+
 .${EditorStyleHelper.checklistWrapper} {
   position: relative;
   margin: 1em 0;

@@ -105,6 +105,12 @@ export default function blockMenuItems(
       shortcut: "^ ⇧ 9",
     },
     {
+      name: "step_list",
+      title: t("Step list"),
+      icon: <OrderedListIcon />,
+      keywords: "steps procedure steps list numbered",
+    },
+    {
       name: "separator",
     },
     {

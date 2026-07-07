@@ -37,6 +37,9 @@ import Notice from "./Notice";
 import OrderedList from "./OrderedList";
 import Paragraph from "./Paragraph";
 import SimpleImage from "./SimpleImage";
+import StepList from "./StepList";
+import StepListItem from "./StepListItem";
+import StepListSubtitle from "./StepListSubtitle";
 import Table from "./Table";
 import TableCell from "./TableCell";
 import TableHeader from "./TableHeader";
@@ -118,6 +121,9 @@ export const richExtensions: Nodes = [
   Math,
   MathBlock,
   Mention,
+  StepListSubtitle,
+  StepListItem,
+  StepList,
   ToggleBlock,
   // Container type nodes should be last so that key handlers are registered for content inside
   // the container nodes first.

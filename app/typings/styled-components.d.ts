@@ -169,6 +169,7 @@ declare module "styled-components" {
     buttonNeutralHoverBackground: string;
     buttonNeutralText: string;
     buttonNeutralBorder: string;
+    stepItemMarkerBorder: string;
     tooltipBackground: string;
     tooltipText: string;
     toastBackground: string;

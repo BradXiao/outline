@@ -7,6 +7,7 @@ const schema = new Schema({
     paragraph: { group: "block", content: "inline*" },
     heading: { group: "block", content: "inline*" },
     code_block: { group: "block", content: "inline*" },
+    step_list: { group: "block", content: "inline*" },
     image: { group: "inline", inline: true },
     text: { group: "inline" },
   },
@@ -29,6 +30,14 @@ describe("requiresTrailingNode", () => {
     expect(
       requiresTrailingNode(
         doc({ type: "heading", content: [{ type: "text", text: "title" }] })
+      )
+    ).toBe(false);
+  });
+
+  it("is false when the document ends in a step list", () => {
+    expect(
+      requiresTrailingNode(
+        doc({ type: "step_list", content: [{ type: "text", text: "step" }] })
       )
     ).toBe(false);
   });

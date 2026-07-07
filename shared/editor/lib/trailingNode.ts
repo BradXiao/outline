@@ -1,7 +1,7 @@
 import { Fragment, type Node } from "prosemirror-model";
 
 /** Node names after which a trailing paragraph is not required. */
-export const trailingNodeNotAfter = ["paragraph", "heading"];
+export const trailingNodeNotAfter = ["paragraph", "heading", "step_list"];
 
 /**
  * Determines whether the editor would insert a trailing paragraph after the

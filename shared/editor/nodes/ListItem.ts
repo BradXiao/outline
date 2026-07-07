@@ -60,34 +60,15 @@ export default class ListItem extends Node {
                   newState.doc.resolve(action.pos),
                   (node) =>
                     node.type.name === this.name ||
-                    node.type.name === "checkbox_item"
+                    node.type.name === "checkbox_item" ||
+                    node.type.name === "step_list_item"
                 );
 
                 if (!result) {
                   return set;
                 }
 
-                const list = findParentNodeClosestToPos(
-                  newState.doc.resolve(action.pos),
-                  (node) => isList(node, this.editor.schema)
-                );
-
-                if (!list) {
-                  return set;
-                }
-
-                const start = list.node.attrs.order || 1;
-
-                let listItemNumber = 0;
-                list.node.content.forEach((li, _, index) => {
-                  if (li === result.node) {
-                    listItemNumber = index;
-                  }
-                });
-
-                const counterLength = String(start + listItemNumber).length;
-
-                return set.add(tr.doc, [
+                const decorations = [
                   Decoration.node(
                     result.pos,
                     result.pos + result.node.nodeSize,
@@ -98,21 +79,51 @@ export default class ListItem extends Node {
                       hover: true,
                     }
                   ),
-                  Decoration.node(
-                    result.pos,
-                    result.pos + result.node.nodeSize,
-                    {
-                      class: `counter-${counterLength}`,
+                ];
+
+                // Step list items number themselves with a CSS counter, so
+                // there's no need to compute a counter-width class for them.
+                if (result.node.type.name !== "step_list_item") {
+                  const list = findParentNodeClosestToPos(
+                    newState.doc.resolve(action.pos),
+                    (node) => isList(node, this.editor.schema)
+                  );
+
+                  if (!list) {
+                    return set;
+                  }
+
+                  const start = list.node.attrs.order || 1;
+
+                  let listItemNumber = 0;
+                  list.node.content.forEach((li, _, index) => {
+                    if (li === result.node) {
+                      listItemNumber = index;
                     }
-                  ),
-                ]);
+                  });
+
+                  const counterLength = String(start + listItemNumber).length;
+
+                  decorations.push(
+                    Decoration.node(
+                      result.pos,
+                      result.pos + result.node.nodeSize,
+                      {
+                        class: `counter-${counterLength}`,
+                      }
+                    )
+                  );
+                }
+
+                return set.add(tr.doc, decorations);
               }
               case "mouseout": {
                 const result = findParentNodeClosestToPos(
                   newState.doc.resolve(action.pos),
                   (node) =>
                     node.type.name === this.name ||
-                    node.type.name === "checkbox_item"
+                    node.type.name === "checkbox_item" ||
+                    node.type.name === "step_list_item"
                 );
 
                 if (!result) {

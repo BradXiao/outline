@@ -46,6 +46,9 @@ export default class HardBreak extends Node {
         ) {
           return false;
         }
+        if (state.selection.$from.node(-1)?.type.name === "step_list_item") {
+          return false;
+        }
         dispatch?.(
           state.tr.replaceSelectionWith(type.create()).scrollIntoView()
         );

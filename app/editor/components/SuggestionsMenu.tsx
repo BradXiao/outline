@@ -341,7 +341,9 @@ function SuggestionsMenu<T extends MenuItem>(props: Props<T>) {
         dispatch(view.state.tr.insertText(" "));
       }
 
-      props.onClose();
+      requestAnimationFrame(() => {
+        props.onClose();
+      });
     },
     [commands, handleClearSearch, props, restoreSelection, view]
   );
@@ -728,6 +730,7 @@ function SuggestionsMenu<T extends MenuItem>(props: Props<T>) {
         if (event.key === "Enter") {
           event.preventDefault();
           event.stopPropagation();
+          event.stopImmediatePropagation();
           const child = submenu.items[submenu.selectedIndex];
           if (child) {
             handleClickItem(child);
@@ -741,6 +744,8 @@ function SuggestionsMenu<T extends MenuItem>(props: Props<T>) {
       // --- Normal (no submenu) ---
       if (event.key === "Enter") {
         event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
 
         const item = filtered[selectedIndex];
 
