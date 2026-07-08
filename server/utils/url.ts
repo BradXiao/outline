@@ -7,6 +7,11 @@ import { InvalidRequestError } from "@server/errors";
 
 const UrlIdLength = 10;
 
+/**
+ * Generates a random identifier for use in model URLs.
+ *
+ * @returns a random URL identifier.
+ */
 export const generateUrlId = () => randomString(UrlIdLength);
 
 // Paths probed by vulnerability scanners.
