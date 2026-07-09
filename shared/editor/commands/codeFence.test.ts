@@ -1,6 +1,10 @@
 import { TextSelection } from "prosemirror-state";
-import { createEditorState, codeBlock, doc } from "@shared/test/editor";
-import { indentInCode, outdentInCode } from "./codeFence";
+import { createEditorState, codeBlock, doc, p } from "@shared/test/editor";
+import {
+  indentInCode,
+  isSelectionOnFirstCodeLine,
+  outdentInCode,
+} from "./codeFence";
 
 /**
  * Helper that runs a command against a code block document with the given
@@ -133,5 +137,31 @@ describe("indentInCode", () => {
       (state, dispatch) => indentInCode(state, dispatch)
     );
     expect(text).toBe("a\n  b\n  c");
+  });
+});
+
+describe("isSelectionOnFirstCodeLine", () => {
+  it("returns true when the caret is on the first code line", () => {
+    const testDoc = doc([codeBlock("alpha\nbeta")]);
+    let state = createEditorState(testDoc);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 3)));
+
+    expect(isSelectionOnFirstCodeLine(state)).toBe(true);
+  });
+
+  it("returns false when the caret is on a later code line", () => {
+    const testDoc = doc([codeBlock("alpha\nbeta")]);
+    let state = createEditorState(testDoc);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 7)));
+
+    expect(isSelectionOnFirstCodeLine(state)).toBe(false);
+  });
+
+  it("returns false when the selection is outside a code block", () => {
+    const testDoc = doc([p("alpha")]);
+    let state = createEditorState(testDoc);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 3)));
+
+    expect(isSelectionOnFirstCodeLine(state)).toBe(false);
   });
 });

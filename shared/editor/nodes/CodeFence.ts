@@ -14,6 +14,7 @@ import {
   NodeSelection,
   Plugin,
   PluginKey,
+  Selection,
   TextSelection,
 } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
@@ -23,6 +24,7 @@ import type { UserPreferences } from "../../types";
 import { isBrowser, isMac } from "../../utils/browser";
 import backspaceToParagraph from "../commands/backspaceToParagraph";
 import {
+  isSelectionOnFirstCodeLine,
   newlineInCode,
   indentInCode,
   moveToNextNewline,
@@ -724,6 +726,34 @@ export default class CodeFence extends Node<CodeFenceOptions> {
     return DecorationSet.create(doc, decorations);
   }
 
+  /** Focus the editable title input for the code block at the given position. */
+  private focusTitleInput(view: EditorView, pos: number): boolean {
+    const codeBlock = view.nodeDOM(pos);
+    if (!(codeBlock instanceof HTMLElement)) {
+      return false;
+    }
+
+    const titleRow = codeBlock.previousElementSibling;
+    if (
+      !(titleRow instanceof HTMLElement) ||
+      !titleRow.classList.contains(EditorStyleHelper.codeBlockTitle)
+    ) {
+      return false;
+    }
+
+    const input = titleRow.querySelector<HTMLInputElement>(
+      `.${EditorStyleHelper.codeBlockTitleInput}`
+    );
+    if (!input || input.readOnly) {
+      return false;
+    }
+
+    input.focus();
+    const caret = input.value.length;
+    input.setSelectionRange(caret, caret);
+    return true;
+  }
+
   /** Plugin that renders the title row widget above each code block. */
   private codeTitlePlugin(): Plugin {
     return new Plugin<DecorationSet>({
@@ -867,6 +897,33 @@ export default class CodeFence extends Node<CodeFenceOptions> {
         event.preventDefault();
         input.value = editingSnapshot;
         input.blur();
+      } else if (event.key === "ArrowDown") {
+        const pos = getPos();
+        if (pos === undefined) {
+          return;
+        }
+
+        event.preventDefault();
+        view.dispatch(
+          view.state.tr
+            .setSelection(TextSelection.create(view.state.doc, pos + 1))
+            .scrollIntoView()
+        );
+        view.focus();
+      } else if (event.key === "ArrowUp") {
+        const pos = getPos();
+        if (pos === undefined) {
+          return;
+        }
+
+        const selection = Selection.findFrom(view.state.doc.resolve(pos), -1);
+        if (!selection) {
+          return;
+        }
+
+        event.preventDefault();
+        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+        view.focus();
       }
     });
 
@@ -928,6 +985,28 @@ export default class CodeFence extends Node<CodeFenceOptions> {
               return splitCodeBlockOnTripleBackticks(state, dispatch);
             }
             return false;
+          },
+        },
+      }),
+      new Plugin({
+        key: new PluginKey("code-fence-title-navigation"),
+        props: {
+          handleKeyDown: (view, event) => {
+            if (event.key !== "ArrowUp") {
+              return false;
+            }
+
+            if (!isSelectionOnFirstCodeLine(view.state)) {
+              return false;
+            }
+
+            const codeBlock = findParentNode(isCode)(view.state.selection);
+            if (!codeBlock || !this.focusTitleInput(view, codeBlock.pos)) {
+              return false;
+            }
+
+            event.preventDefault();
+            return true;
           },
         },
       }),

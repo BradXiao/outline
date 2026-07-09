@@ -10,6 +10,25 @@ import { languagesWithFourSpaceIndent } from "../lib/code";
 const newline = "\n";
 
 /**
+ * Checks whether the current selection is on the first line of a code block.
+ *
+ * @param state - the current editor state.
+ * @returns true if the selection is a caret on the first code line.
+ */
+export function isSelectionOnFirstCodeLine(state: EditorState) {
+  if (!state.selection.empty || !isInCode(state, { onlyBlock: true })) {
+    return false;
+  }
+
+  const { $from } = state.selection;
+  if (!$from.parent.type.isTextblock) {
+    return false;
+  }
+
+  return findPreviousNewline($from) === $from.pos - $from.parentOffset;
+}
+
+/**
  * Moves the current selection to the previous newline, this is used inside
  * code fences only, prosemirror handles this functionality fine in other nodes.
  *
