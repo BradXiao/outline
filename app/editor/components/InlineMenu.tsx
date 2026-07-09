@@ -1,10 +1,14 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Slot } from "@radix-ui/react-slot";
 import * as React from "react";
+import { closeHistory } from "@shared/editor/lib/closeHistory";
 import { RemoveScroll } from "react-remove-scroll";
 import styled from "styled-components";
 import EventBoundary from "@shared/components/EventBoundary";
 import { collapseSelection } from "@shared/editor/commands/collapseSelection";
+import { isTableSelected } from "@shared/editor/queries/table";
+import { ColumnSelection } from "@shared/editor/selection/ColumnSelection";
+import { RowSelection } from "@shared/editor/selection/RowSelection";
 import type { MenuItem } from "@shared/editor/types";
 import { useTranslation } from "react-i18next";
 import Scrollable from "~/components/Scrollable";
@@ -17,6 +21,7 @@ import {
 } from "~/components/primitives/Drawer";
 import { MenuProvider } from "~/components/primitives/Menu/MenuContext";
 import type { MenuItem as TMenuItem, MenuItemWithChildren } from "~/types";
+import useEventListener from "~/hooks/useEventListener";
 import useMobile from "~/hooks/useMobile";
 import { mapMenuItems } from "../menus/mapMenuItems";
 import { useEditor } from "./EditorContext";
@@ -50,6 +55,23 @@ const InlineMenu: React.FC<Props> = ({ items, rtl }) => {
   const { commands, view } = useEditor();
   const { state } = view;
   const isMobile = useMobile();
+
+  const executeCommand = React.useCallback(
+    (name: "deleteTable" | "deleteColumn" | "deleteRow") => {
+      const command = commands[name];
+
+      if (!command) {
+        return false;
+      }
+
+      closeHistory(view);
+      command();
+      closeHistory(view);
+
+      return true;
+    },
+    [commands, view]
+  );
   const {
     ref: anchorRef,
     key: anchorKey,
@@ -66,6 +88,53 @@ const InlineMenu: React.FC<Props> = ({ items, rtl }) => {
   const preventFocus = React.useCallback((ev: Event) => {
     ev.preventDefault();
   }, []);
+
+  const handleKeyDown = React.useCallback(
+    (ev: KeyboardEvent) => {
+      if (isMobile || !anchorKey) {
+        return;
+      }
+
+      if (ev.key !== "Backspace" && ev.key !== "Delete") {
+        return;
+      }
+
+      if (
+        ev.target instanceof HTMLElement &&
+        (ev.target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(ev.target.tagName))
+      ) {
+        return;
+      }
+
+      const { selection } = view.state;
+      let handled = false;
+
+      if (isTableSelected(view.state)) {
+        handled = executeCommand("deleteTable");
+      } else if (
+        selection instanceof ColumnSelection &&
+        selection.isColSelection()
+      ) {
+        handled = executeCommand("deleteColumn");
+      } else if (
+        selection instanceof RowSelection &&
+        selection.isRowSelection()
+      ) {
+        handled = executeCommand("deleteRow");
+      }
+
+      if (!handled) {
+        return;
+      }
+
+      ev.preventDefault();
+      ev.stopPropagation();
+    },
+    [anchorKey, executeCommand, isMobile, view]
+  );
+
+  useEventListener("keydown", handleKeyDown, window, { capture: true });
 
   // Dismiss the menu by collapsing the selection so the toolbar stops matching.
   const handleDismiss = React.useCallback(() => {
