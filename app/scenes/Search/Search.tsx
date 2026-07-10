@@ -7,6 +7,7 @@ import { useHistory, useLocation, useRouteMatch } from "react-router-dom";
 import { Waypoint } from "react-waypoint";
 import styled from "styled-components";
 import breakpoint from "styled-components-breakpoint";
+import { debounce } from "es-toolkit/compat";
 import { Pagination } from "@shared/constants";
 import type {
   SortFilter as TSortFilter,
@@ -64,6 +65,7 @@ function Search() {
     routeMatch.params.query ?? params.get("q") ?? params.get("query") ?? ""
   ).trim();
   const query = decodedQuery !== "" ? decodedQuery : undefined;
+  const [inputValue, setInputValue] = React.useState(query ?? "");
   const collectionId = params.get("collectionId") ?? "";
   const userId = params.get("userId") ?? "";
   const documentId = params.get("documentId") ?? undefined;
@@ -72,6 +74,7 @@ function Search() {
     ? (params.getAll("statusFilter") as TStatusFilter[])
     : [TStatusFilter.Published, TStatusFilter.Draft];
   const titleFilter = params.get("titleFilter") === "true";
+  const statusFilterKey = statusFilter.join(",");
   const sort = (params.get("sort") as TSortFilter) ?? "";
   const direction = (params.get("direction") as TDirectionFilter) ?? "";
 
@@ -92,7 +95,7 @@ function Search() {
   const filters = React.useMemo(
     () => ({
       query,
-      statusFilter,
+      statusFilter: statusFilterKey.split(",") as TStatusFilter[],
       collectionId,
       userId,
       dateFilter,
@@ -103,7 +106,7 @@ function Search() {
     }),
     [
       query,
-      JSON.stringify(statusFilter),
+      statusFilterKey,
       collectionId,
       userId,
       dateFilter,
@@ -144,7 +147,7 @@ function Search() {
     limit: Pagination.defaultLimit,
   });
 
-  const updateLocation = (query: string) => {
+  const updateLocation = React.useCallback((query: string) => {
     // If query came from route params, navigate to base search path
     const pathname = routeMatch.params.query ? searchPath() : location.pathname;
 
@@ -157,7 +160,40 @@ function Search() {
         }
       ),
     });
-  };
+  }, [history, location.pathname, location.search, routeMatch.params.query]);
+
+  const debouncedUpdateLocation = React.useMemo(
+    () =>
+      debounce((nextQuery: string) => {
+        updateLocation(nextQuery);
+      }, 350),
+    [updateLocation]
+  );
+
+  React.useEffect(() => {
+    setInputValue(query ?? "");
+  }, [query]);
+
+  React.useEffect(
+    () => () => {
+      debouncedUpdateLocation.cancel();
+    },
+    [debouncedUpdateLocation]
+  );
+
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<HTMLInputElement>) => {
+      if (ev.nativeEvent.isComposing) {
+        setInputValue(ev.currentTarget.value);
+        return;
+      }
+
+      const nextQuery = ev.currentTarget.value;
+      setInputValue(nextQuery);
+      debouncedUpdateLocation(nextQuery);
+    },
+    [debouncedUpdateLocation]
+  );
 
   // All filters go through the query string so that searches are bookmarkable, which neccesitates
   // some complexity as the query string is the source of truth for the filters.
@@ -187,12 +223,13 @@ function Search() {
     });
   };
 
-  const handleKeyDown = (ev: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = React.useCallback((ev: React.KeyboardEvent<HTMLInputElement>) => {
     if (ev.nativeEvent.isComposing) {
       return;
     }
 
     if (ev.key === "Enter") {
+      debouncedUpdateLocation.flush();
       updateLocation(ev.currentTarget.value);
       return;
     }
@@ -232,7 +269,7 @@ function Search() {
 
       firstItem?.focus();
     }
-  };
+  }, [debouncedUpdateLocation, history, updateLocation]);
 
   const handleEscape = () => searchInputRef.current?.focus();
   const showEmpty = !loading && query && data?.length === 0;
@@ -266,7 +303,8 @@ function Search() {
                   : t("Search")
             }…`}
             onKeyDown={handleKeyDown}
-            defaultValue={query ?? ""}
+            onChange={handleChange}
+            value={inputValue}
           />
           <Filters>
             <Flex align="center" gap={4} wrap>

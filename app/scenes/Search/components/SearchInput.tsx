@@ -6,21 +6,29 @@ import Flex from "~/components/Flex";
 
 interface Props extends React.HTMLAttributes<HTMLInputElement> {
   name: string;
-  defaultValue: string;
+  value: string;
 }
 
 function SearchInput(
-  { defaultValue, ...rest }: Props,
-  ref: React.RefObject<HTMLInputElement>
+  { value, ...rest }: Props,
+  ref: React.ForwardedRef<HTMLInputElement>
 ) {
   const theme = useTheme();
   const focusInput = React.useCallback(() => {
+    if (!ref || typeof ref === "function") {
+      return;
+    }
+
     ref.current?.focus();
   }, [ref]);
 
   React.useEffect(() => {
-    // ensure that focus is placed at end of input
-    const len = (defaultValue || "").length;
+    // ensure that focus is placed at end of input on mount
+    if (!ref || typeof ref === "function") {
+      return;
+    }
+
+    const len = ref.current?.value.length ?? 0;
     ref.current?.setSelectionRange(len, len);
     const timeoutId = setTimeout(() => {
       focusInput();
@@ -29,14 +37,14 @@ function SearchInput(
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [ref, defaultValue, focusInput]);
+  }, [ref, focusInput]);
 
   return (
     <Wrapper align="center">
       <StyledIcon size={46} color={theme.placeholder} onClick={focusInput} />
       <StyledInput
         {...rest}
-        defaultValue={defaultValue}
+        value={value}
         ref={ref}
         spellCheck="false"
         type="search"
