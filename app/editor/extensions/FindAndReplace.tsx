@@ -7,6 +7,9 @@ import { Decoration, DecorationSet } from "prosemirror-view";
 import scrollIntoView from "scroll-into-view-if-needed";
 import type { WidgetProps } from "@shared/editor/lib/Extension";
 import Extension from "@shared/editor/lib/Extension";
+import { headingToPersistenceKey } from "@shared/editor/lib/headingToSlug";
+import { findBlockNodes } from "@shared/editor/queries/findChildren";
+import Storage from "@shared/utils/Storage";
 import { Action, toggleFoldPluginKey } from "@shared/editor/nodes/ToggleBlock";
 import { isToggleBlock } from "@shared/editor/queries/toggleBlock";
 import { ancestors } from "@shared/editor/utils";
@@ -17,6 +20,7 @@ import { deburrWithMap } from "./deburrWithMap";
 const pluginKey = new PluginKey("find-and-replace");
 const supportsHighlightAPI =
   typeof CSS !== "undefined" && CSS.highlights !== undefined;
+const searchActiveClass = "search-active-show-folded";
 
 /**
  * Options for the FindAndReplace extension.
@@ -165,6 +169,7 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
       dispatch?.(state.tr.setMeta(pluginKey, {}));
       this.expandFoldedTogglesForCurrentMatch();
       this.expandCollapsedCodeBlockForCurrentMatch();
+      this.setSearchActiveClass(!!this.searchTerm);
       this.scrollToCurrentMatch();
 
       return true;
@@ -176,6 +181,7 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
       this.searchTerm = "";
       this.currentResultIndex = 0;
       this.results = [];
+      this.setSearchActiveClass(false);
       this.clearHighlights();
 
       dispatch?.(state.tr.setMeta(pluginKey, {}));
@@ -486,6 +492,8 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
    */
   private updateHighlights() {
     const view = this.editor?.view;
+    this.setSearchActiveClass(!!this.searchTerm);
+
     if (!view || !this.results.length || !this.searchTerm) {
       this.clearHighlights();
       return;
@@ -549,9 +557,10 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
    * @returns whether the highlights should be rebuilt.
    */
   private highlightsStale() {
-    if (this.highlightRanges.length < this.results.length) {
-      return true;
+    if (!this.currentHighlightRange) {
+      return false;
     }
+
     return this.highlightRanges.some(
       (range) =>
         !range.startContainer.isConnected || !range.endContainer.isConnected
@@ -589,9 +598,99 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
     this.handleEscape();
   };
 
+  private handleDocumentClick = (event: MouseEvent) => {
+    if (!this.searchTerm || event.defaultPrevented || event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.closest(".folded-content")) {
+      return;
+    }
+
+    const view = this.editor?.view;
+    if (!view) {
+      return;
+    }
+
+    const result = view.posAtCoords({
+      left: event.clientX,
+      top: event.clientY,
+    });
+    if (!result) {
+      return;
+    }
+
+    const pos = result.inside > -1 ? result.inside : result.pos;
+    const headingPositions = this.findCollapsedHeadingPositionsForPos(pos);
+    if (!headingPositions.length) {
+      return;
+    }
+
+    const tr = view.state.tr;
+    let changed = false;
+
+    headingPositions.forEach((headingPos) => {
+      const node = tr.doc.nodeAt(headingPos);
+      if (node?.type.name !== "heading" || !node.attrs.collapsed) {
+        return;
+      }
+
+      tr.setNodeMarkup(headingPos, undefined, {
+        ...node.attrs,
+        collapsed: false,
+      });
+      Storage.remove(headingToPersistenceKey(node, this.editor.props.id));
+      changed = true;
+    });
+
+    if (changed) {
+      view.dispatch(tr);
+    }
+  };
+
+  private findCollapsedHeadingPositionsForPos(pos: number) {
+    const blocks = findBlockNodes(this.editor.view.state.doc);
+    const collapsedStack: {
+      pos: number;
+      level: number;
+    }[] = [];
+
+    for (const block of blocks) {
+      const isHeading = block.node.type.name === "heading";
+
+      if (isHeading) {
+        while (
+          collapsedStack.length &&
+          block.node.attrs.level <=
+            collapsedStack[collapsedStack.length - 1].level
+        ) {
+          collapsedStack.pop();
+        }
+      }
+
+      if (block.pos <= pos && pos < block.pos + block.node.nodeSize) {
+        return collapsedStack.map((entry) => entry.pos);
+      }
+
+      if (isHeading && block.node.attrs.collapsed) {
+        collapsedStack.push({
+          pos: block.pos,
+          level: block.node.attrs.level as number,
+        });
+      }
+    }
+
+    return [];
+  }
+
   private currentHighlightRange?: StaticRange;
 
   private highlightRanges: StaticRange[] = [];
+
+  private setSearchActiveClass(enabled: boolean) {
+    this.editor?.view.dom.classList.toggle(searchActiveClass, enabled);
+  }
 
   get allowInReadOnly() {
     return true;
@@ -616,9 +715,11 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
     return new Plugin({
       view: () => {
         document.addEventListener("keydown", this.handleDocumentKeyDown);
+        document.addEventListener("click", this.handleDocumentClick);
         return {
           destroy: () => {
             document.removeEventListener("keydown", this.handleDocumentKeyDown);
+            document.removeEventListener("click", this.handleDocumentClick);
           },
         };
       },
@@ -675,6 +776,7 @@ export default class FindAndReplaceExtension extends Extension<FindAndReplaceOpt
             }
           },
           destroy: () => {
+            this.setSearchActiveClass(false);
             // The highlight registry is global and keyed by fixed names, so
             // only tear down highlights when this editor actually owns an
             // active search — otherwise an unmounting editor could wipe the

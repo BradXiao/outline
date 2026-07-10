@@ -2917,6 +2917,12 @@ table {
   user-select: none;
 }
 
+.ProseMirror.search-active-show-folded .folded-content,
+.ProseMirror.search-active-show-folded .folded-content + .mermaid-diagram-wrapper {
+  display: revert;
+  user-select: text;
+}
+
 @keyframes ProseMirror-cursor-blink {
   to {
     visibility: hidden;
@@ -2984,6 +2990,10 @@ li > .${EditorStyleHelper.toggleBlock} {
      folded-content decoration; ensure it stays hidden despite display: flex. */
   &.folded-content {
     display: none;
+  }
+
+  .ProseMirror.search-active-show-folded &.folded-content {
+    display: flex;
   }
 
   &:focus-within {
