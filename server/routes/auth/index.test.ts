@@ -1,7 +1,12 @@
 import { addMonths } from "date-fns";
+import { vi } from "vitest";
+import { Client } from "@shared/types";
 import { buildUser, buildCollection } from "@server/test/factories";
 import { getTestServer } from "@server/test/support";
+import env from "@server/env";
 import { getJWTPayload } from "@server/utils/jwt";
+import { signIn } from "@server/utils/authentication";
+import { AuthenticationType } from "@server/types";
 
 const server = getTestServer();
 
@@ -60,6 +65,58 @@ describe("auth/redirect", () => {
     const expectedMax = addMonths(Date.now(), 3).getTime() + 1000;
     expect(expiresAt).toBeGreaterThanOrEqual(expectedMin);
     expect(expiresAt).toBeLessThanOrEqual(expectedMax);
+  });
+
+  it("should redirect desktop-authenticated self-hosted installs back to the desktop handoff", async () => {
+    const user = await buildUser();
+    const originalUrl = env.URL;
+    const cookies = new Map<string, string>();
+    const redirect = vi.fn();
+
+    env.URL = "https://example.test";
+
+    try {
+      await signIn(
+        {
+          state: {
+            auth: {
+              user,
+              type: AuthenticationType.APP,
+            },
+            transaction: undefined,
+          },
+          request: {
+            hostname: "example.test",
+            ip: "127.0.0.1",
+          },
+          cookies: {
+            get(name: string) {
+              return cookies.get(name);
+            },
+            set(name: string, value: string) {
+              cookies.set(name, value);
+            },
+          },
+          redirect,
+        },
+        "passkeys",
+        {
+          user,
+          team: user.team,
+          client: Client.Desktop,
+          isNewUser: false,
+          isNewTeam: false,
+        }
+      );
+    } finally {
+      env.URL = originalUrl;
+    }
+
+    expect(redirect).toHaveBeenCalledTimes(1);
+    expect(redirect.mock.calls[0][0]).toMatch(
+      /^https:\/\/example\.test\/desktop-redirect\?token=/
+    );
+    expect(cookies.has("accessToken")).toBe(false);
   });
 
   it("should prevent token extension by rejecting JWT tokens", async () => {
