@@ -31,7 +31,7 @@ import useStores from "~/hooks/useStores";
 import type { PaginationParams, SearchResult } from "~/types";
 import { preventDefault } from "~/utils/events";
 import { searchPath } from "~/utils/routeHelpers";
-import { decodeURIComponentSafe } from "~/utils/urls";
+import { decodeURIComponentSafe, isTruthyQueryValue } from "~/utils/urls";
 import CollectionFilter from "./components/CollectionFilter";
 import DateFilter from "./components/DateFilter";
 import { DocumentFilter } from "./components/DocumentFilter";
@@ -73,7 +73,7 @@ function Search() {
   const statusFilter = params.getAll("statusFilter")?.length
     ? (params.getAll("statusFilter") as TStatusFilter[])
     : [TStatusFilter.Published, TStatusFilter.Draft];
-  const titleFilter = params.get("titleFilter") === "true";
+  const titleFilter = isTruthyQueryValue(params.get("titleFilter"));
   const statusFilterKey = statusFilter.join(",");
   const sort = (params.get("sort") as TSortFilter) ?? "";
   const direction = (params.get("direction") as TDirectionFilter) ?? "";
@@ -295,13 +295,12 @@ function Search() {
             name="query"
             key={query ? "search" : "recent"}
             ref={searchInputRef}
-            placeholder={`${
-              documentId
+            placeholder={`${documentId
                 ? t("Search in document")
                 : collectionId
                   ? t("Search in collection")
                   : t("Search")
-            }…`}
+              }…`}
             onKeyDown={handleKeyDown}
             onChange={handleChange}
             value={inputValue}
@@ -393,14 +392,14 @@ function Search() {
                 {() =>
                   data?.length && !error
                     ? data.map((result) => (
-                        <DocumentListItem
-                          key={result.document.id}
-                          document={result.document}
-                          highlight={query}
-                          context={result.context}
-                          showCollection
-                        />
-                      ))
+                      <DocumentListItem
+                        key={result.document.id}
+                        document={result.document}
+                        highlight={query}
+                        context={result.context}
+                        showCollection
+                      />
+                    ))
                     : null
                 }
               </StyledArrowKeyNavigation>
