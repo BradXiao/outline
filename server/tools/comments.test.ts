@@ -191,6 +191,69 @@ describe("create_comment", () => {
   });
 });
 
+describe("create_comment_on_text", () => {
+  it("creates an anchored comment on a document", async () => {
+    const { user, accessToken } = await buildOAuthUser();
+    const collection = await buildCollection({
+      teamId: user.teamId,
+      userId: user.id,
+    });
+    const document = await buildDocument({
+      teamId: user.teamId,
+      userId: user.id,
+      collectionId: collection.id,
+    });
+
+    const anchorText = "anchored content";
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: anchorText,
+            },
+          ],
+        },
+      ],
+    } as ProsemirrorData;
+    await document.update({ content });
+
+    const res = await callMcpTool(server, accessToken, "create_comment_on_text", {
+      documentId: document.id,
+      text: "A new anchored comment",
+      anchorText,
+    });
+    const data = JSON.parse(res?.result?.content?.[0]?.text ?? "{}");
+
+    expect(data.id).toBeDefined();
+    expect(data.documentId).toEqual(document.id);
+    expect(data.anchorText).toEqual(anchorText);
+  });
+
+  it("requires anchorText", async () => {
+    const { user, accessToken } = await buildOAuthUser();
+    const collection = await buildCollection({
+      teamId: user.teamId,
+      userId: user.id,
+    });
+    const document = await buildDocument({
+      teamId: user.teamId,
+      userId: user.id,
+      collectionId: collection.id,
+    });
+
+    const res = await callMcpTool(server, accessToken, "create_comment_on_text", {
+      documentId: document.id,
+      text: "A new anchored comment",
+    });
+
+    expect(res?.error ?? res?.result?.isError).toBeTruthy();
+  });
+});
+
 describe("update_comment", () => {
   it("updates text", async () => {
     const { user, accessToken } = await buildOAuthUser();

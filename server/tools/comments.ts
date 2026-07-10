@@ -222,6 +222,93 @@ export function commentTools(server: McpServer, scopes: string[]) {
   }
 
   if (AuthenticationHelper.canAccess("comments.create", scopes)) {
+    const createComment = async (
+      {
+        documentId,
+        text,
+        parentCommentId,
+        anchorText,
+        anchorPrefix,
+        anchorSuffix,
+      },
+      context
+    ) => {
+      try {
+        const ctx = buildAPIContext(context);
+        const { user } = ctx.state.auth;
+
+        const data = commentParser.parse(text).toJSON();
+        const commentId = uuidv4();
+
+        const comment = await sequelize.transaction(async (transaction) => {
+          ctx.state.transaction = transaction;
+          ctx.context.transaction = transaction;
+
+          if (anchorText) {
+            // Acquire the row lock on the document directly when
+            // anchoring so a concurrent comment-mark application can't
+            // overwrite our state update.
+            await Document.unscoped().findOne({
+              where: { id: documentId },
+              attributes: ["id"],
+              transaction,
+              lock: Transaction.LOCK.UPDATE,
+            });
+          }
+
+          const document = await Document.findByPk(documentId, {
+            userId: user.id,
+            // We only need to load the state binary if applying a comment mark
+            includeState: !!anchorText,
+            transaction,
+          });
+          authorize(user, "comment", document);
+
+          if (anchorText) {
+            if (!document.state) {
+              throw ValidationError("Cannot inline comment on this document");
+            }
+
+            const updatedState = ProsemirrorHelper.applyCommentMarkByText({
+              docState: document.state,
+              anchorText,
+              commentId,
+              userId: user.id,
+              prefix: anchorPrefix,
+              suffix: anchorSuffix,
+            });
+
+            if (!updatedState) {
+              throw ValidationError(
+                "Could not anchor comment to the provided text in the document"
+              );
+            }
+
+            await document.updateWithCtx(ctx, { state: updatedState });
+          }
+
+          const created = await Comment.createWithCtx(ctx, {
+            id: commentId,
+            data,
+            createdById: user.id,
+            documentId,
+            parentCommentId,
+          });
+
+          created.createdBy = user;
+          created.document = document!;
+          return created;
+        });
+
+        const presented = presentCommentWithText(comment);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(presented) }],
+        } satisfies CallToolResult;
+      } catch (err) {
+        return error(err);
+      }
+    };
+
     server.registerTool(
       "create_comment",
       {
@@ -251,99 +338,41 @@ export function commentTools(server: McpServer, scopes: string[]) {
           ),
         },
       },
-      withTracing(
-        "create_comment",
-        async (
-          {
-            documentId,
-            text,
-            parentCommentId,
-            anchorText,
-            anchorPrefix,
-            anchorSuffix,
-          },
-          context
-        ) => {
-          try {
-            const ctx = buildAPIContext(context);
-            const { user } = ctx.state.auth;
+      withTracing("create_comment", createComment)
+    );
 
-            const data = commentParser.parse(text).toJSON();
-            const commentId = uuidv4();
-
-            const comment = await sequelize.transaction(async (transaction) => {
-              ctx.state.transaction = transaction;
-              ctx.context.transaction = transaction;
-
-              if (anchorText) {
-                // Acquire the row lock on the document directly when
-                // anchoring so a concurrent comment-mark application can't
-                // overwrite our state update.
-                await Document.unscoped().findOne({
-                  where: { id: documentId },
-                  attributes: ["id"],
-                  transaction,
-                  lock: Transaction.LOCK.UPDATE,
-                });
-              }
-
-              const document = await Document.findByPk(documentId, {
-                userId: user.id,
-                // We only need to load the state binary if applying a comment mark
-                includeState: !!anchorText,
-                transaction,
-              });
-              authorize(user, "comment", document);
-
-              if (anchorText) {
-                if (!document.state) {
-                  throw ValidationError(
-                    "Cannot inline comment on this document"
-                  );
-                }
-
-                const updatedState = ProsemirrorHelper.applyCommentMarkByText({
-                  docState: document.state,
-                  anchorText,
-                  commentId,
-                  userId: user.id,
-                  prefix: anchorPrefix,
-                  suffix: anchorSuffix,
-                });
-
-                if (!updatedState) {
-                  throw ValidationError(
-                    "Could not anchor comment to the provided text in the document"
-                  );
-                }
-
-                await document.updateWithCtx(ctx, { state: updatedState });
-              }
-
-              const created = await Comment.createWithCtx(ctx, {
-                id: commentId,
-                data,
-                createdById: user.id,
-                documentId,
-                parentCommentId,
-              });
-
-              created.createdBy = user;
-              created.document = document!;
-              return created;
-            });
-
-            const presented = presentCommentWithText(comment);
-            return {
-              content: [
-                { type: "text" as const, text: JSON.stringify(presented) },
-              ],
-            } satisfies CallToolResult;
-          } catch (err) {
-            return error(err);
-          }
-        }
-      )
+    server.registerTool(
+      "create_comment_on_text",
+      {
+        title: "Create comment on text",
+        description:
+          "Creates a new comment on specific document text. Provide the comment content as markdown text and the document text to anchor to. Optionally nest it as a reply under an existing comment.",
+        annotations: {
+          idempotentHint: false,
+          readOnlyHint: false,
+        },
+        inputSchema: {
+          documentId: z.string().describe("The document ID to comment on."),
+          text: z
+            .string()
+            .describe("The markdown text content of the comment."),
+          parentCommentId: optionalString().describe(
+            "The parent comment ID to reply to. Omit for a top-level comment."
+          ),
+          anchorText: z
+            .string()
+            .describe(
+              "A plain text substring of the document to anchor this comment to as an inline comment."
+            ),
+          anchorPrefix: optionalString().describe(
+            "Only provide this if anchorText appears more than once in the document and you need to target a specific occurrence. Plain text that immediately precedes anchorText."
+          ),
+          anchorSuffix: optionalString().describe(
+            "Only provide this if anchorText appears more than once in the document and you need to target a specific occurrence. Plain text that immediately follows anchorText."
+          ),
+        },
+      },
+      withTracing("create_comment_on_text", createComment)
     );
   }
 
