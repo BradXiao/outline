@@ -342,6 +342,8 @@ export enum UserPreference {
   FullWidthDocuments = "fullWidthDocuments",
   /** Whether to sort the comments by their order in the document. */
   SortCommentsByOrderInDocument = "sortCommentsByOrderInDocument",
+  /** Whether to display a comment indicator in the gutter beside commented lines. */
+  CommentsInGutter = "commentsInGutter",
   /** Whether smart text replacements should be enabled. */
   EnableSmartText = "enableSmartText",
   /** The style of notification badge to display. */
@@ -364,6 +366,7 @@ export type UserPreferences = {
   [UserPreference.SeamlessEdit]?: boolean;
   [UserPreference.FullWidthDocuments]?: boolean;
   [UserPreference.SortCommentsByOrderInDocument]?: boolean;
+  [UserPreference.CommentsInGutter]?: boolean;
   [UserPreference.EnableSmartText]?: boolean;
   [UserPreference.NotificationBadge]?: NotificationBadgeType;
 };
