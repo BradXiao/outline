@@ -28,10 +28,12 @@ export type MermaidState = {
   editingId?: string;
 };
 
-// The `v2` namespace discards entries cached before the #11782 fix, so
-// previously mis-sized diagrams are re-rendered instead of served from cache.
-const STORAGE_PREFIX = "mermaid:v2:";
+// The `v3` namespace discards entries cached before the htmlLabels=false
+// workaround was made part of the cache signature, so browsers with older
+// foreignObject-based SVGs are forced to re-render instead of reusing them.
+const STORAGE_PREFIX = "mermaid:v3:";
 const MAX_STORAGE_ENTRIES = 20;
+const RENDER_CACHE_SIGNATURE = "htmlLabels:false:mindmapLabelCenter";
 
 class Cache {
   /** Get a cached SVG by diagram text and theme. */
@@ -132,6 +134,52 @@ function fontAwesomeToIconify(pack: IconPack, prefix: string): IconifyIconSet {
   return { prefix, icons };
 }
 
+/**
+ * Re-center mindmap labels on basic label-container shapes. Mermaid leaves
+ * `g.label` at translate(0, y) for root circles and parenthesized nodes when
+ * htmlLabels is false, so text overflows to the right of the shape.
+ *
+ * @param svg the rendered mindmap SVG element.
+ * @return the number of labels that were re-centered.
+ */
+function fixMindmapLabelContainerAlignment(svg: SVGSVGElement): number {
+  let fixed = 0;
+
+  for (const node of svg.querySelectorAll(".mindmap-node")) {
+    const shape = node.querySelector(".label-container");
+    const label = node.querySelector("g.label");
+    const labelText = node.querySelector("text");
+
+    if (!(shape instanceof SVGGraphicsElement) || !label || !labelText) {
+      continue;
+    }
+
+    const transform = label.getAttribute("transform") ?? "";
+    const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+    if (!match) {
+      continue;
+    }
+
+    const labelTx = Number(match[1]);
+    if (labelTx !== 0) {
+      continue;
+    }
+
+    const textWidth = labelText.getBBox().width;
+    if (textWidth <= 0) {
+      continue;
+    }
+
+    label.setAttribute(
+      "transform",
+      `translate(${-textWidth / 2}, ${match[2]})`
+    );
+    fixed++;
+  }
+
+  return fixed;
+}
+
 class MermaidRenderer {
   readonly diagramId: string;
   readonly element: HTMLElement;
@@ -152,11 +200,15 @@ class MermaidRenderer {
     const element = this.element;
     const text = block.node.textContent;
 
-    const cacheKey = `${isDark ? "dark" : "light"}-${text}`;
+    const cacheKey = `${RENDER_CACHE_SIGNATURE}-${isDark ? "dark" : "light"}-${text}`;
     const cache = Cache.get(cacheKey);
     if (cache) {
       element.classList.remove("parse-error", "empty");
       element.innerHTML = cache;
+      const cachedSvg = element.querySelector("svg");
+      if (cachedSvg instanceof SVGSVGElement) {
+        fixMindmapLabelContainerAlignment(cachedSvg);
+      }
       return;
     }
 
@@ -221,6 +273,7 @@ class MermaidRenderer {
         // the future if Mermaid is able to handle this automatically.
         gantt: { useWidth: 700 },
         pie: { useWidth: 700 },
+        htmlLabels: false,
         fontFamily: getComputedStyle(this.element).fontFamily || "inherit",
         theme: isDark ? "dark" : "default",
         darkMode: isDark,
@@ -234,12 +287,14 @@ class MermaidRenderer {
       // Allow the user to interact with the diagram
       bindFunctions?.(element);
 
-      // Mermaid sizes the SVG from a getBBox() taken in the hidden render
-      // element, which is unreliable on high-DPI/RDP displays and leaves
-      // diagrams too large or too small (#11782). Re-frame from the now-visible
-      // SVG, where getBBox() reflects the real content.
       const rendered = element.querySelector("svg");
       if (rendered instanceof SVGSVGElement) {
+        fixMindmapLabelContainerAlignment(rendered);
+
+        // Mermaid sizes the SVG from a getBBox() taken in the hidden render
+        // element, which is unreliable on high-DPI/RDP displays and leaves
+        // diagrams too large or too small (#11782). Re-frame from the now-visible
+        // SVG, where getBBox() reflects the real content.
         const box = rendered.getBBox();
         if (box.width > 0 && box.height > 0) {
           const padding = 8;
