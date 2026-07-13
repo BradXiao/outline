@@ -771,6 +771,19 @@ iframe.embed {
   }
 }
 
+.image .image-wrapper,
+.image .image-wrapper img {
+  width: var(--image-width, auto);
+}
+
+/* Inside auto-layout table cells the plain pixel width would expand the cell  */
+td .image .image-wrapper,
+th .image .image-wrapper,
+td .image .image-wrapper img,
+th .image .image-wrapper img {
+  width: min(var(--image-width), 100%);
+}
+
 .image.placeholder,
 .video.placeholder {
   position: relative;
