@@ -4,7 +4,7 @@ import { Selection } from "prosemirror-state";
 import { __parseFromClipboard } from "prosemirror-view";
 import * as React from "react";
 import { mergeRefs } from "react-merge-refs";
-import styled, { css } from "styled-components";
+import styled from "styled-components";
 import breakpoint from "styled-components-breakpoint";
 import Icon, { IconTitleWrapper } from "@shared/components/Icon";
 import isMarkdown from "@shared/editor/lib/isMarkdown";
@@ -22,6 +22,7 @@ import type { RefHandle } from "~/components/ContentEditable";
 import ContentEditable from "~/components/ContentEditable";
 import { useDocumentContext } from "~/components/DocumentContext";
 import { PopoverButton } from "~/components/IconPicker/components/PopoverButton";
+import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
 import useBoolean from "~/hooks/useBoolean";
 import usePolicy from "~/hooks/usePolicy";
 import { useTranslation } from "react-i18next";
@@ -237,7 +238,9 @@ const DocumentTitle = React.forwardRef(function DocumentTitle_(
   const initial = title.charAt(0).toUpperCase();
   const fallbackIcon = icon ? (
     <Icon value={icon} initial={initial} color={color} size={40} />
-  ) : null;
+  ) : (
+    <DocumentPlaceholderIcon size={40} />
+  );
 
   return (
     <Title
@@ -249,7 +252,6 @@ const DocumentTitle = React.forwardRef(function DocumentTitle_(
       placeholder={placeholder}
       value={title}
       $iconPickerIsOpen={iconPickerIsOpen}
-      $containsIcon={!!icon}
       autoFocus={!title}
       maxLength={DocumentValidation.maxTitleLength}
       readOnly={readOnly}
@@ -271,20 +273,21 @@ const DocumentTitle = React.forwardRef(function DocumentTitle_(
               onClose={handleClose}
               allowDelete
               borderOnHover
-            />
+            >
+              {icon ? null : <DocumentPlaceholderIcon size={40} />}
+            </StyledIconPicker>
           </React.Suspense>
         </IconTitleWrapper>
-      ) : icon ? (
+      ) : (
         <IconTitleWrapper dir={dir} aria-hidden>
           {fallbackIcon}
         </IconTitleWrapper>
-      ) : null}
+      )}
     </Title>
   );
 });
 
 type TitleProps = {
-  $containsIcon: boolean;
   $iconPickerIsOpen: boolean;
   readOnly?: boolean;
 };
@@ -315,35 +318,14 @@ const Title = styled(ContentEditable)<TitleProps>`
     opacity: 1;
   }
 
-  ${(props: TitleProps) =>
-    !props.readOnly &&
-    css`
-      &:focus-within,
-      &:focus {
-        ${PopoverButton} {
-          opacity: 1 !important;
-        }
-      }
-    `};
-
   ${PopoverButton} {
-    opacity: ${(props: TitleProps) =>
-      props.$containsIcon ? "1 !important" : 0};
+    opacity: 1;
   }
 
   ${breakpoint("tablet")`
     margin-top: 6vh;
     margin-left: 0;
-
-    &:hover {
-      ${PopoverButton} {
-        opacity: 0.5;
-
-        &:hover {
-          opacity: 1;
-        }
-      }
-    }`};
+  `};
 
   @media print {
     color: ${light.text};

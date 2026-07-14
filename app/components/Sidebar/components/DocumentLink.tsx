@@ -14,6 +14,7 @@ import type Document from "~/models/Document";
 import type GroupMembership from "~/models/GroupMembership";
 import type UserMembership from "~/models/UserMembership";
 import type { RefHandle } from "~/components/EditableTitle";
+import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
 import useBoolean from "~/hooks/useBoolean";
 import useCurrentUser from "~/hooks/useCurrentUser";
 import { useDocumentMenuAction } from "~/hooks/useDocumentMenuAction";
@@ -289,7 +290,11 @@ const DocumentLinkInner = observer(function DocumentLinkInner({
 
   const iconElement = React.useMemo(
     () =>
-      icon ? <Icon value={icon} color={color} initial={initial} /> : undefined,
+      icon ? (
+        <Icon value={icon} color={color} initial={initial} />
+      ) : (
+        <DocumentPlaceholderIcon />
+      ),
     [icon, color, initial]
   );
 

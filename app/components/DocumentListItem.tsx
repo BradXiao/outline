@@ -7,7 +7,6 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { mergeRefs } from "react-merge-refs";
 import { Link } from "react-router-dom";
-import { DocumentIcon } from "outline-icons";
 import styled, { css, useTheme } from "styled-components";
 import breakpoint from "styled-components-breakpoint";
 import EventBoundary from "@shared/components/EventBoundary";
@@ -18,6 +17,7 @@ import Badge from "~/components/Badge";
 import DocumentMeta from "~/components/DocumentMeta";
 import Flex from "~/components/Flex";
 import Highlight from "~/components/Highlight";
+import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
 import NudeButton from "~/components/NudeButton";
 import StarButton, { AnimatedStar } from "~/components/Star";
 import Tooltip from "~/components/Tooltip";
@@ -160,10 +160,7 @@ function DocumentListItem(
                   initial={document.initial}
                 />
               ) : (
-                <DocumentIcon
-                  outline={document.isDraft}
-                  color={theme.textSecondary}
-                />
+                <DocumentPlaceholderIcon color={theme.textSecondary} />
               )}
             </IconWrapper>
             <Content>
