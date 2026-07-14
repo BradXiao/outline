@@ -82,8 +82,7 @@ const mathStyle = (props: Props) => css`
 
     .ProseMirror-focused {
       border-radius: 2px;
-      outline: 2px solid
-        ${props.readOnly ? "transparent" : props.theme.selected};
+      outline: none;
     }
   }
 
