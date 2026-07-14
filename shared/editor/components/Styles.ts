@@ -2071,7 +2071,8 @@ mark {
     `
   }
 
-  &:is(.code-active) + .mermaid-diagram-wrapper {
+  &:is(.code-active)
+    + .mermaid-diagram-wrapper:not(.parse-error):not(.empty) {
     cursor: zoom-in;
   }
 
@@ -2087,7 +2088,7 @@ mark {
     outline: none;
 
     & + .mermaid-diagram-wrapper {
-      &:not(.empty) {
+      &:not(.parse-error):not(.empty) {
         cursor: zoom-in;
       }
       outline: 2px solid ${props.theme.selected};
@@ -2100,7 +2101,7 @@ mark {
     height: 0;
     overflow: hidden;
 
-    & + .mermaid-diagram-wrapper {
+    & + .mermaid-diagram-wrapper:not(.parse-error):not(.empty) {
       cursor: zoom-in;
     }
 }
