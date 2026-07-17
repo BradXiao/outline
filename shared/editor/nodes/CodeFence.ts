@@ -1077,8 +1077,11 @@ export default class CodeFence extends Node<CodeFenceOptions> {
 
   inputRules({ type }: { type: NodeType }) {
     return [
-      textblockTypeInputRule(/^```$/, type, () => ({
-        language: getRecentlyUsedCodeLanguage() ?? DEFAULT_LANGUAGE,
+      textblockTypeInputRule(/^```([a-z0-9+#-]*) $/i, type, (match) => ({
+        language:
+          normalizeCodeLanguage(match[1]) ??
+          getRecentlyUsedCodeLanguage() ??
+          DEFAULT_LANGUAGE,
       })),
     ];
   }
