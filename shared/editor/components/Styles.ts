@@ -1301,6 +1301,7 @@ ${
 .notice-block {
   display: flex;
   align-items: center;
+  position: relative;
   background: ${transparentize(0.9, props.theme.noticeInfoBackground)};
   border-left: 4px solid ${props.theme.noticeInfoBackground};
   color: ${props.theme.noticeInfoText};
@@ -1436,18 +1437,23 @@ p {
   min-height: 1.6em;
 }
 
+/* Make top-level paragraphs a positioning context so the comment gutter anchors
+   to them (flush with the content column) */
+.ProseMirror > p {
+  position: relative;
+}
+
 .heading-content {
   position: relative;
 }
 
-/* The heading is the gutter's containing block (unlike paragraphs, which
-   resolve against the padded .ProseMirror). Pin it vertically to the line and
-   add the editor's horizontal padding so it aligns with other gutter marks. */
+/* The heading is taller than the line, so pin the gutter vertically to center
+   its indicators against the text. Horizontal alignment is handled by the
+   gutter's own rule. */
 .heading-content .${EditorStyleHelper.commentGutter} {
   top: 0;
   bottom: 0;
   justify-content: center;
-  inset-inline-start: calc(100% + ${EditorStyleHelper.padding}px);
 }
 
 .heading-content a,
@@ -2989,6 +2995,9 @@ li > .${EditorStyleHelper.toggleBlock} {
 
 .${EditorStyleHelper.toggleBlock} {
   display: flex;
+  /* Establish a positioning context so comment gutters on nested content anchor
+     here (flush with the content column) rather than the padded .ProseMirror. */
+  position: relative;
 
   /* When a toggle block is inside a collapsed heading it receives the
      folded-content decoration; ensure it stays hidden despite display: flex. */
