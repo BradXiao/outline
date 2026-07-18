@@ -171,15 +171,20 @@ export default class Heading extends Node<HeadingOptions> {
     const normalizedUrl = window.location.href
       .split("#")[0]
       .replace("/edit", "");
-
+    try {
+  
     // Heading text without the injected "#" anchor button.
     const clone = heading.cloneNode(true) as HTMLElement;
     clone.querySelectorAll(".heading-anchor").forEach((el) => el.remove());
     const headingText = clone.textContent?.trim() ?? "";
 
     copy(`[📃${headingText}](${normalizedUrl}${hash})`);
-
-        toast.message(t("Link copied to clipboard"));
+          toast.message(t("Link copied to clipboard"));
+    } catch (_err) {
+      // Some browser contexts disable the prompt() fallback used by
+      // copy-to-clipboard, causing it to throw – surface it rather than crash.
+      toast.error(t("Sorry, the link could not be copied"));
+    }
     };
 
     keys({ type, schema }: { type: NodeType; schema: Schema }) {
