@@ -34,6 +34,7 @@ import {
   EditIcon,
   EmbedIcon,
   OpenIcon,
+  SplitIcon,
 } from "outline-icons";
 import { toast } from "sonner";
 import Icon from "@shared/components/Icon";
@@ -81,6 +82,7 @@ import {
   trashPath,
   documentEditPath,
 } from "~/utils/routeHelpers";
+import { getFocusedSplitPane, openRouteInSplit } from "~/utils/splitView";
 import { documentBreadcrumbText } from "~/components/DocumentBreadcrumb";
 import CollectionIcon from "~/components/Icons/CollectionIcon";
 import type {
@@ -1094,6 +1096,28 @@ export const openDocumentInDesktop = createAction({
   },
 });
 
+export const openDocumentInSplit = createAction({
+  name: ({ t }) => t("Open in split view"),
+  analyticsName: "Open document in split view",
+  section: ActiveDocumentSection,
+  icon: <SplitIcon />,
+  keywords: "split side pane",
+  visible: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId || isMobile()) {
+      return false;
+    }
+    return !!stores.documents.get(activeDocumentId);
+  },
+  perform: ({ activeDocumentId, stores }) => {
+    const document = activeDocumentId
+      ? stores.documents.get(activeDocumentId)
+      : undefined;
+    if (document) {
+      openRouteInSplit(history, documentPath(document));
+    }
+  },
+});
+
 export const presentDocument = createAction({
   name: ({ t, isMenu }) => (isMenu ? t("Present") : t("Present document")),
   analyticsName: "Present document",
@@ -1556,7 +1580,7 @@ export const openDocumentComments = createAction({
       history.push(path, { sidebarContext });
     }
 
-    stores.ui.set({ rightSidebar: "comments" });
+    stores.ui.setRightSidebar("comments", getFocusedSplitPane());
   },
 });
 
@@ -1714,5 +1738,6 @@ export const rootDocumentActions = [
   openDocumentHistory,
   openDocumentInsights,
   openDocumentInDesktop,
+  openDocumentInSplit,
   shareDocument,
 ];

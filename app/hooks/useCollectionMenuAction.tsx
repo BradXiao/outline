@@ -16,6 +16,7 @@ import {
   createDocument,
   exportCollection,
   importDocument,
+  openCollectionInSplit,
   importDirectory,
   sortCollection,
 } from "~/actions/definitions/collections";
@@ -63,6 +64,7 @@ export function useCollectionMenuAction({ collectionId, onRename }: Props) {
       sortCollection,
       exportCollection,
       archiveCollection,
+      openCollectionInSplit,
       searchInCollection,
       ActionSeparator,
       deleteCollection,
