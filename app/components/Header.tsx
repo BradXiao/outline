@@ -152,7 +152,7 @@ const Actions = styled(Flex)`
   flex-basis: 0;
   min-width: auto;
   padding-inline: 8px 0;
-  gap: 12px;
+  gap: 8px;
   margin-inline-start: 8px;
 
   ${breakpoint("tablet")`
