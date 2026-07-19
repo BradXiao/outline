@@ -6,7 +6,6 @@ import type { Node as ProsemirrorNode, NodeSpec, NodeType, Schema } from "prosem
 import type { Command } from "prosemirror-state";
 import { Plugin, Selection, TextSelection } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
-import { toast } from "sonner";
 import type { Primitive } from "utility-types";
 import { isSafari } from "../../utils/browser";
 import Storage from "../../utils/Storage";
@@ -179,11 +178,14 @@ export default class Heading extends Node<HeadingOptions> {
     const headingText = clone.textContent?.trim() ?? "";
 
     copy(`[📃${headingText}](${normalizedUrl}${hash})`);
-          toast.message(t("Link copied to clipboard"));
+          this.editor.props.onNotice?.(t("Link copied to clipboard"));
     } catch (_err) {
       // Some browser contexts disable the prompt() fallback used by
       // copy-to-clipboard, causing it to throw – surface it rather than crash.
-      toast.error(t("Sorry, the link could not be copied"));
+      this.editor.props.onNotice?.(
+        t("Sorry, the link could not be copied"),
+        "error"
+      );
     }
     };
 
