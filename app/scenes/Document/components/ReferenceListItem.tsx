@@ -198,25 +198,23 @@ function ReferenceListItemContextMenu({
   const contextMenuAction = useDocumentMenuAction({ documentId: document.id });
 
   return (
-    <li>
-      <ActionContextProvider
-        value={{
-          activeModels: [
-            document,
-            ...(!isShare && document.collection ? [document.collection] : []),
-          ],
-        }}
+    <ActionContextProvider
+      value={{
+        activeModels: [
+          document,
+          ...(!isShare && document.collection ? [document.collection] : []),
+        ],
+      }}
+    >
+      <ContextMenu
+        action={contextMenuAction}
+        ariaLabel={t("Document options")}
+        onOpen={handleMenuOpen}
+        onClose={handleMenuClose}
       >
-        <ContextMenu
-          action={contextMenuAction}
-          ariaLabel={t("Document options")}
-          onOpen={handleMenuOpen}
-          onClose={handleMenuClose}
-        >
-          {children}
-        </ContextMenu>
-      </ActionContextProvider>
-    </li>
+        {children}
+      </ContextMenu>
+    </ActionContextProvider>
   );
 }
 

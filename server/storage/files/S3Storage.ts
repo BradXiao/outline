@@ -203,9 +203,8 @@ export default class S3Storage extends BaseStorage {
       const cfUrl = this.getCloudFrontUrlForKey(key);
 
       try {
-        const { getSignedUrl: getCloudFrontSignedUrl } = await import(
-          "@aws-sdk/cloudfront-signer"
-        );
+        const { getSignedUrl: getCloudFrontSignedUrl } =
+          await import("@aws-sdk/cloudfront-signer");
         return getCloudFrontSignedUrl({
           url: cfUrl,
           keyPairId: env.AWS_CLOUDFRONT_KEY_PAIR_ID,
