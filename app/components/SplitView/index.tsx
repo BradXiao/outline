@@ -8,6 +8,7 @@ import { Router, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import { depths, s } from "@shared/styles";
 import CenteredContent from "~/components/CenteredContent";
+import { DocumentContextProvider } from "~/components/DocumentContext";
 import PlaceholderDocument from "~/components/PlaceholderDocument";
 import {
   RightSidebarProvider,
@@ -183,21 +184,23 @@ const Pane = ({
       onFocusCapture={handleFocus}
     >
       <SplitViewContext.Provider value={contextValue}>
-        <RightSidebarProvider>
-          <PaneContent>
-            <React.Suspense
-              fallback={
-                <CenteredContent>
-                  <PlaceholderDocument />
-                </CenteredContent>
-              }
-            >
-              {children}
-            </React.Suspense>
-          </PaneContent>
-          <PaneAside />
-          <FocusRing $visible={isFocused} aria-hidden />
-        </RightSidebarProvider>
+        <DocumentContextProvider>
+          <RightSidebarProvider>
+            <PaneContent>
+              <React.Suspense
+                fallback={
+                  <CenteredContent>
+                    <PlaceholderDocument />
+                  </CenteredContent>
+                }
+              >
+                {children}
+              </React.Suspense>
+            </PaneContent>
+            <PaneAside />
+            <FocusRing $visible={isFocused} aria-hidden />
+          </RightSidebarProvider>
+        </DocumentContextProvider>
       </SplitViewContext.Provider>
       {resizeBorder}
     </PaneContainer>
