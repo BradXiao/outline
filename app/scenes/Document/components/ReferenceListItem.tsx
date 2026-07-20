@@ -182,40 +182,44 @@ function ReferenceListItem({
   );
 }
 
-function ReferenceListItemContextMenu({
-  document,
-  children,
-  handleMenuOpen,
-  handleMenuClose,
-}: {
-  document: Document;
-  handleMenuOpen: () => void;
-  handleMenuClose: () => void;
-  children: React.ReactNode;
-}) {
-  const { t } = useTranslation();
-  const { isShare } = useShare();
-  const contextMenuAction = useDocumentMenuAction({ documentId: document.id });
+const ReferenceListItemContextMenu = observer(
+  function ReferenceListItemContextMenu_({
+    document,
+    children,
+    handleMenuOpen,
+    handleMenuClose,
+  }: {
+    document: Document;
+    handleMenuOpen: () => void;
+    handleMenuClose: () => void;
+    children: React.ReactNode;
+  }) {
+    const { t } = useTranslation();
+    const { isShare } = useShare();
+    const contextMenuAction = useDocumentMenuAction({
+      documentId: document.id,
+    });
 
-  return (
-    <ActionContextProvider
-      value={{
-        activeModels: [
-          document,
-          ...(!isShare && document.collection ? [document.collection] : []),
-        ],
-      }}
-    >
-      <ContextMenu
-        action={contextMenuAction}
-        ariaLabel={t("Document options")}
-        onOpen={handleMenuOpen}
-        onClose={handleMenuClose}
+    return (
+      <ActionContextProvider
+        value={{
+          activeModels: [
+            document,
+            ...(!isShare && document.collection ? [document.collection] : []),
+          ],
+        }}
       >
-        {children}
-      </ContextMenu>
-    </ActionContextProvider>
-  );
-}
+        <ContextMenu
+          action={contextMenuAction}
+          ariaLabel={t("Document options")}
+          onOpen={handleMenuOpen}
+          onClose={handleMenuClose}
+        >
+          {children}
+        </ContextMenu>
+      </ActionContextProvider>
+    );
+  }
+);
 
 export default observer(ReferenceListItem);
