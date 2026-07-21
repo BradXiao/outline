@@ -300,8 +300,6 @@ const PaneContainer = styled.div<{ $secondary: boolean }>`
   display: flex;
   flex: 1 1 50%;
   min-width: 0;
-  border-inline-start: ${(props) =>
-    props.$secondary ? `1px solid ${props.theme.divider}` : "none"};
 `;
 
 const PaneContent = styled.div`
@@ -321,7 +319,10 @@ const FocusRing = styled.div<{ $visible: boolean }>`
   inset: 0;
   pointer-events: none;
   z-index: ${depths.sidebar + 1};
-  box-shadow: inset 0 0 0 2px ${s("accent")};
+  box-shadow:
+    inset 0 0 0 2px ${s("background")},
+    inset 0 0 0 4px ${s("inputBorder")};
+  border-radius: 6px;
   opacity: ${(props) => (props.$visible ? 1 : 0)};
   transition: opacity 100ms ease-in-out;
 `;
