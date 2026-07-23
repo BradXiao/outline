@@ -1600,6 +1600,14 @@ ol li {
   padding-top: 1px;
 }
 
+.step-list-body > ul {
+  list-style: disc;
+}
+
+.step-list-body > ol {
+  list-style: decimal;
+}
+
 .step-list-body > p {
   margin: 0;
 }

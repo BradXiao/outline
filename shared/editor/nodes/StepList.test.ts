@@ -8,6 +8,7 @@ import {
   schema,
 } from "@shared/test/editor";
 import StepList from "./StepList";
+import stepListRule from "../rules/stepList";
 import StepListItem from "./StepListItem";
 
 const { step_list, step_list_item, step_list_subtitle } = schema.nodes;
@@ -142,6 +143,115 @@ describe("StepListItem", () => {
     expect(result.doc.lastChild?.type.name).toBe("paragraph");
     expect(result.selection.$from.parent.type.name).toBe("paragraph");
     expect(result.selection.$from.parentOffset).toBe(0);
+  });
+
+  it("does not jump to the next step from nested or non-empty content", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    }).Enter;
+    const nestedList = schema.nodes.bullet_list.create(null, [
+      schema.nodes.list_item.create(null, [p()]),
+    ]);
+    const item = step_list_item.create(null, [
+      p("First"),
+      nestedList,
+      schema.nodes.code_block.create(null, schema.text("code")),
+    ]);
+    const document = doc([step_list.create(null, [item])]);
+
+    let state = createEditorState(document);
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" && child.content.size === 0
+          )
+        )
+      )
+    );
+
+    let result = applyCommand(state, command);
+
+    expect(result.handled).toBe(false);
+    expect(result.result.doc.eq(document)).toBe(true);
+
+    state = createEditorState(document);
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) => child.type.name === "code_block"
+          )
+        )
+      )
+    );
+
+    result = applyCommand(state, command);
+
+    expect(result.handled).toBe(false);
+    expect(result.result.doc.eq(document)).toBe(true);
+
+    state = createEditorState(document);
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" && child.textContent === "First"
+          )
+        )
+      )
+    );
+
+    result = applyCommand(state, command);
+
+    expect(result.handled).toBe(false);
+    expect(result.result.doc.eq(document)).toBe(true);
+  });
+
+  it("jumps to the next step from an empty direct paragraph", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    }).Enter;
+    let state = createEditorState(
+      doc([
+        step_list.create(null, [
+          step_list_item.create(null, [p("First"), p()]),
+        ]),
+      ])
+    );
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" && child.content.size === 0
+          )
+        )
+      )
+    );
+
+    const { handled, result } = applyCommand(state, command);
+
+    expect(handled).toBe(true);
+    expect(result.doc.firstChild?.childCount).toBe(2);
+    expect(result.doc.firstChild?.child(0).childCount).toBe(1);
+    expect(result.doc.firstChild?.child(0).textContent).toBe("First");
+    expect(result.doc.firstChild?.child(1).childCount).toBe(1);
+    expect(result.selection.$from.parent.type.name).toBe("paragraph");
+    expect(result.selection.$from.parentOffset).toBe(0);
+    expect(result.selection.$from.node(-1).type.name).toBe("step_list_item");
   });
 });
 

@@ -30,6 +30,17 @@ const getStepList = (state: EditorState, type: NodeType) =>
     (node) => node.type === type
   );
 
+const isInEmptyStepParagraph = (state: EditorState, stepDepth: number) => {
+  const { paragraph } = state.schema.nodes;
+
+  return (
+    !!paragraph &&
+    state.selection.$from.parent.type === paragraph &&
+    state.selection.$from.parent.content.size === 0 &&
+    state.selection.$from.depth === stepDepth + 1
+  );
+};
+
 const closeStepList =
   (type: NodeType, schema: Schema): Command =>
   (state, dispatch) => {
@@ -108,9 +119,17 @@ const insertNextStep =
     if (!step) {
       return false;
     }
+    if (!isInEmptyStepParagraph(state, step.depth)) {
+      return false;
+    }
 
-    const insertPos = step.pos + step.node.nodeSize;
-    const tr = state.tr.insert(insertPos, createStepListItem(schema, type));
+    const paragraphDepth = state.selection.$from.depth;
+    const paragraphStart = state.selection.$from.before(paragraphDepth);
+    const paragraphEnd = state.selection.$from.after(paragraphDepth);
+    const stepEnd = step.pos + step.node.nodeSize;
+    let tr = state.tr.delete(paragraphStart, paragraphEnd);
+    const insertPos = tr.mapping.map(stepEnd, -1);
+    tr = tr.insert(insertPos, createStepListItem(schema, type));
 
     dispatch?.(
       tr
