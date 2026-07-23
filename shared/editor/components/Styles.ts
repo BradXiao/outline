@@ -1556,21 +1556,29 @@ ol li {
 }
 
 .step-list-item + .step-list-item {
-  margin-top: 20px;
+  margin-top: 7px;
 }
 
-.step-list-item:not(:last-child)::after {
+.step-list-item::after {
   content: "";
   position: absolute;
   left: 11px;
-  top: 30px;
+  top: 26px;
   width: 1px;
-  bottom: -17px;
+  bottom: 0;
+  margin-bottom: 10px;
   background-image: radial-gradient(circle closest-side, rgb(102, 119, 143) 100%, transparent 100%);
   background-position: center top;
   background-repeat: repeat-y;
   background-size: 1px 3px;
 }
+
+.step-list-item:not(:last-child)::after {
+  bottom: -17px;
+
+}
+
+
 
 .step-list-marker {
   position: absolute;
