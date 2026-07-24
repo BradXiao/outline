@@ -86,6 +86,7 @@ function DocumentEditor(props: Props, ref: React.ForwardedRef<SharedEditor>) {
     readOnly,
     children,
     multiplayer,
+    onInit,
     ...rest
   } = props;
   const can = usePolicy(document);
@@ -197,10 +198,10 @@ function DocumentEditor(props: Props, ref: React.ForwardedRef<SharedEditor>) {
     [childOffsetHeight]
   );
 
-  const handleInit = React.useCallback(
-    () => setEditorInitialized(true),
-    [setEditorInitialized]
-  );
+  const handleInit = React.useCallback(() => {
+    setEditorInitialized(true);
+    onInit?.();
+  }, [setEditorInitialized, onInit]);
 
   const handleDestroy = React.useCallback(
     () => setEditorInitialized(false),

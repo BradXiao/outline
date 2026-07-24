@@ -95,9 +95,14 @@ function DocumentScene({
   const sidebarContext = useLocationSidebarContext();
   const { isFocused } = useSplitView();
   const { team, user } = auth;
+  const isShare = !!shareId;
+  const multiplayerEditor =
+    !document.isArchived && !document.isDeleted && !revision && !isShare;
 
   const editorRef = useRef<TEditor>(null);
   const cursorRestoreReadyRef = useRef(false);
+  const cursorRestoreFrameRef = useRef<number | undefined>(undefined);
+  const cursorRestoreAttemptsRef = useRef(0);
 
   const {
     isUploading,
@@ -116,35 +121,90 @@ function DocumentScene({
 
   React.useEffect(() => {
     cursorRestoreReadyRef.current = false;
+    cursorRestoreAttemptsRef.current = 0;
+
+    if (cursorRestoreFrameRef.current) {
+      window.cancelAnimationFrame(cursorRestoreFrameRef.current);
+      cursorRestoreFrameRef.current = undefined;
+    }
+
+    return () => {
+      if (cursorRestoreFrameRef.current) {
+        window.cancelAnimationFrame(cursorRestoreFrameRef.current);
+        cursorRestoreFrameRef.current = undefined;
+      }
+    };
   }, [document.id]);
+
+  const restoreCursorPosition = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    const searchTerm = params.get("q");
+
+    if (window.location.hash || searchTerm) {
+      cursorRestoreReadyRef.current = true;
+      return;
+    }
+
+    if (!user?.getPreference(UserPreference.RememberLastPath)) {
+      cursorRestoreReadyRef.current = true;
+      return;
+    }
+
+    const pos = getCursorPosition(document.id);
+    if (pos === undefined) {
+      cursorRestoreReadyRef.current = true;
+      return;
+    }
+
+    const attemptRestore = () => {
+      const editor = editorRef.current;
+      const docSize = editor?.view?.state.doc.content.size;
+
+      if (editor?.view && docSize !== undefined) {
+        const canRestoreNow =
+          !multiplayerEditor || (docSize > 2 && pos <= docSize);
+
+        if (canRestoreNow || cursorRestoreAttemptsRef.current >= 600) {
+          editor.scrollToPosition(pos, { focus: isFocused });
+          cursorRestoreReadyRef.current = true;
+          return;
+        }
+      }
+
+      if (cursorRestoreAttemptsRef.current >= 600) {
+        cursorRestoreReadyRef.current = true;
+        return;
+      }
+
+      cursorRestoreAttemptsRef.current += 1;
+      cursorRestoreFrameRef.current =
+        window.requestAnimationFrame(attemptRestore);
+    };
+
+    if (cursorRestoreFrameRef.current) {
+      window.cancelAnimationFrame(cursorRestoreFrameRef.current);
+    }
+
+    cursorRestoreAttemptsRef.current = 0;
+    attemptRestore();
+  }, [document.id, isFocused, location.search, multiplayerEditor, user]);
 
   const onSynced = useCallback(async () => {
     const restore = location.state?.restore;
     const revisionId = location.state?.revisionId;
     const editor = editorRef.current;
 
-    if (!editor) {
-      return;
-    }
-
-    // Highlight search term when navigating from search results
+    // Highlight search term when navigating from search results. Cursor
+    // restore is retried separately because the visible editor ref may not
+    // be attached at the exact moment multiplayer reports synced.
     const params = new URLSearchParams(location.search);
     const searchTerm = params.get("q");
-    if (searchTerm) {
+    if (searchTerm && editor) {
       editor.commands.find({ text: searchTerm });
-    } else if (
-      !window.location.hash &&
-      user?.getPreference(UserPreference.RememberLastPath)
-    ) {
-      // Restore the cursor to where it was when the document was last open, as
-      // long as we're not navigating to a specific anchor or search term.
-      const pos = getCursorPosition(document.id);
-      if (pos) {
-        editor.scrollToPosition(pos, { focus: isFocused });
-      }
+      cursorRestoreReadyRef.current = true;
+    } else {
+      restoreCursorPosition();
     }
-
-    cursorRestoreReadyRef.current = true;
 
     if (!restore) {
       return;
@@ -156,7 +216,7 @@ function DocumentScene({
       revisionId: undefined,
     });
 
-    if (!revisionId) {
+    if (!revisionId || !editor) {
       return;
     }
 
@@ -177,9 +237,7 @@ function DocumentScene({
     t,
     history,
     document.url,
-    document.id,
-    isFocused,
-    user,
+    restoreCursorPosition,
   ]);
 
   // Persist the cursor position so it can be restored when the document is
@@ -348,7 +406,6 @@ function DocumentScene({
   }, [readOnly, history, document, sidebarContext]);
 
   // Render
-  const isShare = !!shareId;
   const embedsDisabled =
     (team && team.documentEmbeds === false) || document.embedsDisabled;
 
@@ -362,9 +419,6 @@ function DocumentScene({
     tocPos === TOCPosition.Left
       ? EditorStyleHelper.tocWidth / -2
       : EditorStyleHelper.tocWidth / 2;
-
-  const multiplayerEditor =
-    !document.isArchived && !document.isDeleted && !revision && !isShare;
 
   const hasEmojiInTitle = determineIconType(document.icon) === IconType.Emoji;
   const pageTitle = hasEmojiInTitle
@@ -479,6 +533,7 @@ function DocumentScene({
                       defaultValue={document.data}
                       embedsDisabled={embedsDisabled}
                       onSynced={onSynced}
+                      onInit={restoreCursorPosition}
                       onSelectionChange={handleSelectionChange}
                       onFileUploadStart={onFileUploadStart}
                       onFileUploadStop={onFileUploadStop}
