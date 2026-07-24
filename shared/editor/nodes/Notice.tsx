@@ -99,14 +99,12 @@ export default class Notice extends Node {
           }),
         },
       ],
-      toDOM: (node) => {
-        const classes = `${EditorStyleHelper.notice} ${node.attrs.style}${node.attrs.fitContent ? " with-fit-content" : ""}`;
-        return [
-          "div",
-          { class: classes },
-          ["div", { class: EditorStyleHelper.noticeContent }, 0],
-        ]
-      },
+      toDOM: (node) => [
+        "div",
+        { class: `${EditorStyleHelper.notice} ${node.attrs.style}` },
+        ["div", { class: EditorStyleHelper.noticeContent }, 0],
+      ]
+      ,
     };
   }
 
@@ -181,7 +179,7 @@ export default class Notice extends Node {
     }
 
     return (
-      <div className={`${EditorStyleHelper.notice} ${node.attrs.style}`}>
+      <div className={`${EditorStyleHelper.notice} ${node.attrs.style}${node.attrs.fitContent ? " with-fit-content" : ""}`}>
         <div className={EditorStyleHelper.noticeIcon} contentEditable={false}>
           {icon}
         </div>
