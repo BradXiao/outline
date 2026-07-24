@@ -27,6 +27,7 @@ import PageTitle from "~/components/PageTitle";
 import PlaceholderDocument from "~/components/PlaceholderDocument";
 import RegisterKeyDown from "~/components/RegisterKeyDown";
 import { MeasuredContainer } from "~/components/MeasuredContainer";
+import { useSplitView } from "~/components/SplitView/context";
 import type { Editor as TEditor } from "~/editor";
 import type { Properties } from "~/types";
 import { useLocationSidebarContext } from "~/hooks/useLocationSidebarContext";
@@ -92,9 +93,11 @@ function DocumentScene({
   const history = useHistory();
   const location = useLocation<LocationState>();
   const sidebarContext = useLocationSidebarContext();
+  const { isFocused } = useSplitView();
   const { team, user } = auth;
 
   const editorRef = useRef<TEditor>(null);
+  const cursorRestoreReadyRef = useRef(false);
 
   const {
     isUploading,
@@ -110,6 +113,10 @@ function DocumentScene({
     onFileUploadStart,
     onFileUploadStop,
   } = useDocumentSave({ document, editorRef, readOnly });
+
+  React.useEffect(() => {
+    cursorRestoreReadyRef.current = false;
+  }, [document.id]);
 
   const onSynced = useCallback(async () => {
     const restore = location.state?.restore;
@@ -133,9 +140,11 @@ function DocumentScene({
       // long as we're not navigating to a specific anchor or search term.
       const pos = getCursorPosition(document.id);
       if (pos) {
-        editor.scrollToPosition(pos);
+        editor.scrollToPosition(pos, { focus: isFocused });
       }
     }
+
+    cursorRestoreReadyRef.current = true;
 
     if (!restore) {
       return;
@@ -169,6 +178,7 @@ function DocumentScene({
     history,
     document.url,
     document.id,
+    isFocused,
     user,
   ]);
 
@@ -189,9 +199,36 @@ function DocumentScene({
     }
   }, [document.id, revision, shareId, user]);
 
+  const handleSelectionChange = useCallback(() => {
+    if (!cursorRestoreReadyRef.current) {
+      return;
+    }
+
+    saveCursorPosition();
+  }, [saveCursorPosition]);
+
   React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (window.document.visibilityState === "hidden") {
+        saveCursorPosition();
+      }
+    };
+
+    window.addEventListener("beforeunload", saveCursorPosition);
     window.addEventListener("pagehide", saveCursorPosition);
-    return () => window.removeEventListener("pagehide", saveCursorPosition);
+    window.document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    return () => {
+      window.removeEventListener("beforeunload", saveCursorPosition);
+      window.removeEventListener("pagehide", saveCursorPosition);
+      window.document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
   }, [saveCursorPosition]);
 
   const onUndoRedo = useCallback(
@@ -442,6 +479,7 @@ function DocumentScene({
                       defaultValue={document.data}
                       embedsDisabled={embedsDisabled}
                       onSynced={onSynced}
+                      onSelectionChange={handleSelectionChange}
                       onFileUploadStart={onFileUploadStart}
                       onFileUploadStop={onFileUploadStop}
                       onCreateLink={onCreateLink}

@@ -127,6 +127,8 @@ export type Props = {
     value: (asString?: boolean, trim?: boolean) => any,
     event?: { remote: boolean }
   ) => void;
+  /** Callback when the editor selection changes */
+  onSelectionChange?: () => void;
   /** Callback when a comment mark is clicked */
   onClickCommentMark?: (commentId: string) => void;
   /**
@@ -562,6 +564,10 @@ export class Editor extends React.PureComponent<
           });
         }
 
+        if (transactions.some((tr) => tr.selectionSet)) {
+          self.props.onSelectionChange?.();
+        }
+
         self.handleEditorInit();
 
         self.calculateDir();
@@ -676,8 +682,9 @@ export class Editor extends React.PureComponent<
    * Used to restore the last known cursor position when re-opening a document.
    *
    * @param pos The document position to place the selection at.
+   * @param options Optional behavior for restoring focus.
    */
-  public scrollToPosition = (pos: number) => {
+  public scrollToPosition = (pos: number, options?: { focus?: boolean }) => {
     const { doc } = this.view.state;
     const clamped = Math.max(0, Math.min(pos, doc.content.size));
     const selection = TextSelection.near(doc.resolve(clamped));
@@ -685,7 +692,7 @@ export class Editor extends React.PureComponent<
 
     // Restore editing focus so the caret is placed where the user left off,
     // but only when the document is editable.
-    if (!this.props.readOnly) {
+    if (!this.props.readOnly && options?.focus !== false) {
       this.view.focus();
     }
 

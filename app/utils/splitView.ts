@@ -4,6 +4,7 @@ import { action, observable } from "mobx";
 import queryString from "query-string";
 import { isMobile } from "@shared/utils/browser";
 import { isModKey } from "@shared/utils/keyboard";
+import Storage from "@shared/utils/Storage";
 
 /**
  * Name of the query string parameter that holds the route displayed in the
@@ -14,6 +15,8 @@ export const splitViewQueryParam = "split";
 
 /** Identifies a pane within the split view. */
 export type SplitViewPane = "primary" | "secondary";
+
+const focusedSplitPaneStorageKey = "focusedSplitPane";
 
 /**
  * Parses the split view route from a location search string.
@@ -102,7 +105,14 @@ export function isSplitablePath(pathname: string): boolean {
   );
 }
 
-const focusedSplitPane = observable.box<SplitViewPane>("primary");
+function getStoredFocusedSplitPane(): SplitViewPane {
+  const pane = Storage.get(focusedSplitPaneStorageKey);
+  return pane === "secondary" ? "secondary" : "primary";
+}
+
+const focusedSplitPane = observable.box<SplitViewPane>(
+  getStoredFocusedSplitPane()
+);
 
 /**
  * Returns the pane of the split view that currently has focus. Defaults to
@@ -124,6 +134,7 @@ export function getFocusedSplitPane(): SplitViewPane {
  */
 export const setFocusedSplitPane = action((pane: SplitViewPane): void => {
   focusedSplitPane.set(pane);
+  Storage.set(focusedSplitPaneStorageKey, pane);
 });
 
 let navigationSuppressed = false;
