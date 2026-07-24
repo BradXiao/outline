@@ -684,7 +684,10 @@ export class Editor extends React.PureComponent<
    * @param pos The document position to place the selection at.
    * @param options Optional behavior for restoring focus.
    */
-  public scrollToPosition = (pos: number, options?: { focus?: boolean }) => {
+  public scrollToPosition = (
+    pos: number,
+    options?: { focus?: boolean; viewportOffset?: number }
+  ) => {
     const { doc } = this.view.state;
     const clamped = Math.max(0, Math.min(pos, doc.content.size));
     const selection = TextSelection.near(doc.resolve(clamped));
@@ -705,7 +708,8 @@ export class Editor extends React.PureComponent<
 
       if (scrollParent) {
         const parentRect = scrollParent.getBoundingClientRect();
-        const offsetFromTop = scrollParent.clientHeight / 4;
+        const offsetFromTop =
+          options?.viewportOffset ?? scrollParent.clientHeight / 4;
         scrollParent.scrollTo({
           top: Math.max(
             0,
@@ -715,7 +719,7 @@ export class Editor extends React.PureComponent<
         return;
       }
 
-      const offsetFromTop = window.innerHeight / 4;
+      const offsetFromTop = options?.viewportOffset ?? window.innerHeight / 4;
       window.scrollTo({
         top: Math.max(0, window.scrollY + coords.top - offsetFromTop),
       });
@@ -723,6 +727,26 @@ export class Editor extends React.PureComponent<
       // coordsAtPos can throw if the position has not yet been laid out, in
       // which case fall back to the default scroll behavior.
       this.view.dispatch(this.view.state.tr.scrollIntoView());
+    }
+  };
+
+  /**
+   * Get the current selection offset from the scroll viewport top.
+   *
+   * @returns The selection viewport offset, or undefined if unavailable.
+   */
+  public getSelectionViewportOffset = () => {
+    try {
+      const coords = this.view.coordsAtPos(this.view.state.selection.head);
+      const scrollParent = this.getScrollParent();
+
+      if (scrollParent) {
+        return coords.top - scrollParent.getBoundingClientRect().top;
+      }
+
+      return coords.top;
+    } catch (_err) {
+      return undefined;
     }
   };
 

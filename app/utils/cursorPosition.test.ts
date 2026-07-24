@@ -1,6 +1,10 @@
 import { vi } from "vitest";
 import Storage from "@shared/utils/Storage";
-import { getCursorPosition, setCursorPosition } from "./cursorPosition";
+import {
+  getCursorPosition,
+  getCursorViewportOffset,
+  setCursorPosition,
+} from "./cursorPosition";
 
 describe("cursorPosition", () => {
   beforeEach(() => {
@@ -24,6 +28,13 @@ describe("cursorPosition", () => {
     setCursorPosition("doc-1", 100);
 
     expect(getCursorPosition("doc-1")).toBe(100);
+  });
+
+  it("records and retrieves a cursor viewport offset", () => {
+    setCursorPosition("doc-1", 42, { viewportOffset: 128 });
+
+    expect(getCursorPosition("doc-1")).toBe(42);
+    expect(getCursorViewportOffset("doc-1")).toBe(128);
   });
 
   it("evicts the least recently updated entries beyond the limit", () => {

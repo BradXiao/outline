@@ -33,7 +33,11 @@ import type { Properties } from "~/types";
 import { useLocationSidebarContext } from "~/hooks/useLocationSidebarContext";
 import useStores from "~/hooks/useStores";
 import isTextInput from "~/utils/isTextInput";
-import { getCursorPosition, setCursorPosition } from "~/utils/cursorPosition";
+import {
+  getCursorPosition,
+  getCursorViewportOffset,
+  setCursorPosition,
+} from "~/utils/cursorPosition";
 import { client } from "~/utils/ApiClient";
 import { emojiToUrl } from "~/utils/emoji";
 import { documentHistoryPath, documentEditPath } from "~/utils/routeHelpers";
@@ -100,9 +104,36 @@ function DocumentScene({
     !document.isArchived && !document.isDeleted && !revision && !isShare;
 
   const editorRef = useRef<TEditor>(null);
+  const cursorRestoreDocumentIdRef = useRef(document.id);
   const cursorRestoreReadyRef = useRef(false);
   const cursorRestoreFrameRef = useRef<number | undefined>(undefined);
+  const cursorRestoreFallbackTimeoutRef = useRef<number | undefined>(undefined);
   const cursorRestoreAttemptsRef = useRef(0);
+
+  if (cursorRestoreDocumentIdRef.current !== document.id) {
+    cursorRestoreDocumentIdRef.current = document.id;
+    cursorRestoreReadyRef.current = false;
+    cursorRestoreAttemptsRef.current = 0;
+  }
+
+  const shouldRestoreCursorPosition = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    const searchTerm = params.get("q");
+
+    if (revision || shareId || window.location.hash || searchTerm) {
+      return false;
+    }
+
+    if (!user?.getPreference(UserPreference.RememberLastPath)) {
+      return false;
+    }
+
+    return getCursorPosition(document.id) !== undefined;
+  }, [document.id, location.search, revision, shareId, user]);
+
+  const [isRestoringCursor, setIsRestoringCursor] = React.useState(
+    shouldRestoreCursorPosition
+  );
 
   const {
     isUploading,
@@ -119,8 +150,22 @@ function DocumentScene({
     onFileUploadStop,
   } = useDocumentSave({ document, editorRef, readOnly });
 
+  const finishCursorRestore = useCallback((options?: { reveal?: boolean }) => {
+    if (options?.reveal === false) {
+      return;
+    }
+
+    cursorRestoreReadyRef.current = true;
+
+    if (cursorRestoreFallbackTimeoutRef.current) {
+      window.clearTimeout(cursorRestoreFallbackTimeoutRef.current);
+      cursorRestoreFallbackTimeoutRef.current = undefined;
+    }
+
+    setIsRestoringCursor(false);
+  }, []);
+
   React.useEffect(() => {
-    cursorRestoreReadyRef.current = false;
     cursorRestoreAttemptsRef.current = 0;
 
     if (cursorRestoreFrameRef.current) {
@@ -128,31 +173,51 @@ function DocumentScene({
       cursorRestoreFrameRef.current = undefined;
     }
 
+    if (cursorRestoreFallbackTimeoutRef.current) {
+      window.clearTimeout(cursorRestoreFallbackTimeoutRef.current);
+      cursorRestoreFallbackTimeoutRef.current = undefined;
+    }
+
+    if (shouldRestoreCursorPosition() && !cursorRestoreReadyRef.current) {
+      setIsRestoringCursor(true);
+      cursorRestoreFallbackTimeoutRef.current = window.setTimeout(
+        finishCursorRestore,
+        1000
+      );
+    } else {
+      setIsRestoringCursor(false);
+    }
+
     return () => {
       if (cursorRestoreFrameRef.current) {
         window.cancelAnimationFrame(cursorRestoreFrameRef.current);
         cursorRestoreFrameRef.current = undefined;
       }
-    };
-  }, [document.id]);
 
-  const restoreCursorPosition = useCallback(() => {
+      if (cursorRestoreFallbackTimeoutRef.current) {
+        window.clearTimeout(cursorRestoreFallbackTimeoutRef.current);
+        cursorRestoreFallbackTimeoutRef.current = undefined;
+      }
+    };
+  }, [document.id, finishCursorRestore, shouldRestoreCursorPosition]);
+
+  const restoreCursorPosition = useCallback((options?: { reveal?: boolean }) => {
     const params = new URLSearchParams(location.search);
     const searchTerm = params.get("q");
 
     if (window.location.hash || searchTerm) {
-      cursorRestoreReadyRef.current = true;
+      finishCursorRestore(options);
       return;
     }
 
     if (!user?.getPreference(UserPreference.RememberLastPath)) {
-      cursorRestoreReadyRef.current = true;
+      finishCursorRestore(options);
       return;
     }
 
     const pos = getCursorPosition(document.id);
     if (pos === undefined) {
-      cursorRestoreReadyRef.current = true;
+      finishCursorRestore(options);
       return;
     }
 
@@ -165,14 +230,17 @@ function DocumentScene({
           !multiplayerEditor || (docSize > 2 && pos <= docSize);
 
         if (canRestoreNow || cursorRestoreAttemptsRef.current >= 600) {
-          editor.scrollToPosition(pos, { focus: isFocused });
-          cursorRestoreReadyRef.current = true;
+          editor.scrollToPosition(pos, {
+            focus: isFocused,
+            viewportOffset: getCursorViewportOffset(document.id),
+          });
+          finishCursorRestore(options);
           return;
         }
       }
 
       if (cursorRestoreAttemptsRef.current >= 600) {
-        cursorRestoreReadyRef.current = true;
+        finishCursorRestore(options);
         return;
       }
 
@@ -187,7 +255,14 @@ function DocumentScene({
 
     cursorRestoreAttemptsRef.current = 0;
     attemptRestore();
-  }, [document.id, isFocused, location.search, multiplayerEditor, user]);
+  }, [
+    document.id,
+    finishCursorRestore,
+    isFocused,
+    location.search,
+    multiplayerEditor,
+    user,
+  ]);
 
   const onSynced = useCallback(async () => {
     const restore = location.state?.restore;
@@ -201,7 +276,7 @@ function DocumentScene({
     const searchTerm = params.get("q");
     if (searchTerm && editor) {
       editor.commands.find({ text: searchTerm });
-      cursorRestoreReadyRef.current = true;
+      finishCursorRestore();
     } else {
       restoreCursorPosition();
     }
@@ -237,6 +312,7 @@ function DocumentScene({
     t,
     history,
     document.url,
+    finishCursorRestore,
     restoreCursorPosition,
   ]);
 
@@ -253,7 +329,9 @@ function DocumentScene({
     }
     const editor = editorRef.current;
     if (editor?.view) {
-      setCursorPosition(document.id, editor.view.state.selection.head);
+      setCursorPosition(document.id, editor.view.state.selection.head, {
+        viewportOffset: editor.getSelectionViewportOffset(),
+      });
     }
   }, [document.id, revision, shareId, user]);
 
@@ -429,6 +507,9 @@ function DocumentScene({
   const fullWidthTransformOffsetStyle = {
     ["--full-width-transform-offset"]: `${document.fullWidth && showContents ? tocOffset : 0}px`,
   } as React.CSSProperties;
+  const hideDocumentSceneForCursorRestore =
+    isRestoringCursor ||
+    (shouldRestoreCursorPosition() && !cursorRestoreReadyRef.current);
 
   return (
     <ErrorBoundary showTitle>
@@ -505,6 +586,7 @@ function DocumentScene({
                 docFullWidth={document.fullWidth}
                 showContents={showContents}
                 tocPosition={tocPos}
+                $isRestoringCursor={hideDocumentSceneForCursorRestore}
               >
                 {revision ? (
                   <RevisionViewer
@@ -533,7 +615,9 @@ function DocumentScene({
                       defaultValue={document.data}
                       embedsDisabled={embedsDisabled}
                       onSynced={onSynced}
-                      onInit={restoreCursorPosition}
+                      onInit={() =>
+                        restoreCursorPosition({ reveal: !multiplayerEditor })
+                      }
                       onSelectionChange={handleSelectionChange}
                       onFileUploadStart={onFileUploadStart}
                       onFileUploadStop={onFileUploadStop}
@@ -603,9 +687,9 @@ const Main = styled.div<MainProps>`
   @media print {
     display: block;
     max-width: ${({ fullWidth }: MainProps) =>
-      fullWidth
-        ? `100%`
-        : `calc(${EditorStyleHelper.documentWidth} + ${EditorStyleHelper.documentGutter})`};
+    fullWidth
+      ? `100%`
+      : `calc(${EditorStyleHelper.documentWidth} + ${EditorStyleHelper.documentGutter})`};
   }
 `;
 
@@ -643,9 +727,15 @@ type EditorContainerProps = {
   docFullWidth: boolean;
   showContents: boolean;
   tocPosition: TOCPosition | false;
+  $isRestoringCursor?: boolean;
 };
 
 const EditorContainer = styled.div<EditorContainerProps>`
+  opacity: ${({ $isRestoringCursor }: EditorContainerProps) =>
+    $isRestoringCursor ? 0 : 1};
+  pointer-events: ${({ $isRestoringCursor }: EditorContainerProps) =>
+    $isRestoringCursor ? "none" : undefined};
+
   // Adds space to the gutter to make room for icon & heading annotations
   padding: 0 32px;
 
