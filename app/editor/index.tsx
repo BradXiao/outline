@@ -693,7 +693,21 @@ export class Editor extends React.PureComponent<
     // at the very bottom, which is where the default minimal scrollIntoView
     // would leave it.
     try {
-      const coords = this.view.coordsAtPos(clamped);
+      const coords = this.view.coordsAtPos(selection.head);
+      const scrollParent = this.getScrollParent();
+
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const offsetFromTop = scrollParent.clientHeight / 4;
+        scrollParent.scrollTo({
+          top: Math.max(
+            0,
+            scrollParent.scrollTop + coords.top - parentRect.top - offsetFromTop
+          ),
+        });
+        return;
+      }
+
       const offsetFromTop = window.innerHeight / 4;
       window.scrollTo({
         top: Math.max(0, window.scrollY + coords.top - offsetFromTop),
@@ -703,6 +717,30 @@ export class Editor extends React.PureComponent<
       // which case fall back to the default scroll behavior.
       this.view.dispatch(this.view.state.tr.scrollIntoView());
     }
+  };
+
+  private getScrollParent = () => {
+    for (
+      let element = this.view.dom.parentElement;
+      element;
+      element = element.parentElement
+    ) {
+      if (element === document.body || element === document.documentElement) {
+        return undefined;
+      }
+
+      const overflowY = getComputedStyle(element).overflowY;
+      if (
+        (overflowY === "auto" ||
+          overflowY === "scroll" ||
+          overflowY === "overlay") &&
+        element.scrollHeight > element.clientHeight
+      ) {
+        return element;
+      }
+    }
+
+    return undefined;
   };
 
   /**
