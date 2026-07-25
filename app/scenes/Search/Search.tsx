@@ -70,9 +70,16 @@ function Search() {
   const userId = params.get("userId") ?? "";
   const documentId = params.get("documentId") ?? undefined;
   const dateFilter = (params.get("dateFilter") as TDateFilter) ?? "";
-  const statusFilter = params.getAll("statusFilter")?.length
-    ? (params.getAll("statusFilter") as TStatusFilter[])
-    : [TStatusFilter.Published, TStatusFilter.Draft];
+  // Keyed on the serialized value so the array keeps a stable identity between
+  // renders and can be used directly as a dependency.
+  const statusFilterKey = params.getAll("statusFilter").join(",");
+  const statusFilter = React.useMemo(
+    () =>
+      statusFilterKey
+        ? (statusFilterKey.split(",") as TStatusFilter[])
+        : [TStatusFilter.Published, TStatusFilter.Draft],
+    [statusFilterKey]
+  );
   const titleFilter = isTruthyQueryValue(params.get("titleFilter"));
   const statusFilterKey = statusFilter.join(",");
   const sort = (params.get("sort") as TSortFilter) ?? "";
