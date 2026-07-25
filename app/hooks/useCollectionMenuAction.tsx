@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useMenuAction } from "./useMenuAction";
-import { ActionSeparator, createAction } from "~/actions";
+import { ActionSeparator } from "~/actions";
 import {
   deleteCollection,
   editCollection,
@@ -20,11 +20,8 @@ import {
   importDirectory,
   sortCollection,
 } from "~/actions/definitions/collections";
+import { renameActionFactory } from "~/actions/definitions/common";
 import { ActiveCollectionSection } from "~/actions/sections";
-import { InputIcon } from "outline-icons";
-import usePolicy from "./usePolicy";
-import useStores from "./useStores";
-import { useTranslation } from "react-i18next";
 
 type Props = {
   /** Collection ID for which the actions are generated */
@@ -34,11 +31,6 @@ type Props = {
 };
 
 export function useCollectionMenuAction({ collectionId, onRename }: Props) {
-  const { collections } = useStores();
-  const { t } = useTranslation();
-  const collection = collections.get(collectionId);
-  const can = usePolicy(collection);
-
   const actions = useMemo(
     () => [
       restoreCollection,
@@ -51,12 +43,10 @@ export function useCollectionMenuAction({ collectionId, onRename }: Props) {
       importDocument,
       importDirectory,
       ActionSeparator,
-      createAction({
-        name: `${t("Rename")}…`,
+      renameActionFactory({
         section: ActiveCollectionSection,
-        icon: <InputIcon />,
-        visible: !!can.update && !!onRename,
-        perform: () => requestAnimationFrame(() => onRename?.()),
+        modelId: collectionId,
+        onRename,
       }),
       editCollection,
       editCollectionPermissions,
@@ -69,7 +59,7 @@ export function useCollectionMenuAction({ collectionId, onRename }: Props) {
       ActionSeparator,
       deleteCollection,
     ],
-    [t, can.update, onRename]
+    [collectionId, onRename]
   );
 
   return useMenuAction(actions);

@@ -1,22 +1,19 @@
-import copy from "copy-to-clipboard";
 import { observer } from "mobx-react";
-import { CopyIcon, EditIcon } from "outline-icons";
-import { useCallback, useMemo } from "react";
+import { EditIcon } from "outline-icons";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import type Comment from "~/models/Comment";
 import { DropdownMenu } from "~/components/Menu/DropdownMenu";
 import { OverflowMenuButton } from "~/components/Menu/OverflowMenuButton";
 import { useDocumentContext } from "~/components/DocumentContext";
 import {
-  deleteCommentFactory,
-  resolveCommentFactory,
-  unresolveCommentFactory,
-  viewCommentReactionsFactory,
+  copyCommentLinkActionFactory,
+  deleteCommentActionFactory,
+  resolveCommentActionFactory,
+  unresolveCommentActionFactory,
+  viewCommentReactionsActionFactory,
 } from "~/actions/definitions/comments";
 import usePolicy from "~/hooks/usePolicy";
-import useStores from "~/hooks/useStores";
-import { commentPath, urlify } from "~/utils/routeHelpers";
 import { ActionSeparator, createAction } from "~/actions";
 import { ActiveDocumentSection } from "~/actions/sections";
 import { useMenuAction } from "~/hooks/useMenuAction";
@@ -74,26 +71,21 @@ function CommentMenu({
         visible: can.update && !comment.isResolved,
         perform: onEdit,
       }),
-      resolveCommentFactory({
+      resolveCommentActionFactory({
         comment,
         onResolve: () => onUpdate({ resolved: true }),
         onReplaceSuggestions: handleReplaceSuggestions,
       }),
-      unresolveCommentFactory({
+      unresolveCommentActionFactory({
         comment,
         onUnresolve: () => onUpdate({ resolved: false }),
       }),
-      viewCommentReactionsFactory({
+      viewCommentReactionsActionFactory({
         comment,
       }),
-      createAction({
-        name: t("Copy link"),
-        icon: <CopyIcon />,
-        section: ActiveDocumentSection,
-        perform: handleCopyLink,
-      }),
+      copyCommentLinkActionFactory({ comment }),
       ActionSeparator,
-      deleteCommentFactory({ comment, onDelete }),
+      deleteCommentActionFactory({ comment, onDelete }),
     ],
     [
       t,
