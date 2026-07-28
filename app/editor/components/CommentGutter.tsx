@@ -213,12 +213,16 @@ function positionGutter(gutter: HTMLElement) {
  * Renders the comment indicators shown in the gutter beside a line that
  * contains one or more unresolved comment marks.
  */
-export function CommentGutter({
+export const CommentGutter = observer(function CommentGutter({
   commentIds,
   onClickCommentMark,
   onHoverCommentMark,
 }: Props) {
   const ref = React.useRef<HTMLDivElement>(null);
+  // Right sidebar (comments/history) shifts the editor without always changing
+  // its size — reposition as soon as the panel toggles. Width changes during
+  // the open animation are picked up via ResizeObserver on [role=main].
+  const rightSidebar = stores.ui.rightSidebar;
 
   React.useLayoutEffect(() => {
     const gutter = ref.current;
@@ -236,10 +240,16 @@ export function CommentGutter({
 
     const editorColumn = findEditorColumn(pm);
     const grid = editorColumn.parentElement;
+    // The layout main column shrinks/grows when the right Aside opens — PM
+    // itself often stays the same width and would not notify ResizeObserver.
+    const main = pm.closest('[role="main"]');
     const resizeObserver = new ResizeObserver(updatePosition);
     resizeObserver.observe(pm);
     if (editorColumn !== pm) {
       resizeObserver.observe(editorColumn);
+    }
+    if (main instanceof HTMLElement) {
+      resizeObserver.observe(main);
     }
     // Watch sibling columns (Contents/TOC) so we reclamp when they appear.
     if (grid) {
@@ -275,7 +285,7 @@ export function CommentGutter({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [commentIds]);
+  }, [commentIds, rightSidebar]);
 
   return (
     <Gutter
@@ -294,7 +304,7 @@ export function CommentGutter({
       ))}
     </Gutter>
   );
-}
+});
 
 const Gutter = styled.div`
   /* Fallback before the layout effect pins a fixed position to the content
