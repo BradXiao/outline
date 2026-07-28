@@ -81,7 +81,6 @@ function Search() {
     [statusFilterKey]
   );
   const titleFilter = isTruthyQueryValue(params.get("titleFilter"));
-  const statusFilterKey = statusFilter.join(",");
   const sort = (params.get("sort") as TSortFilter) ?? "";
   const direction = (params.get("direction") as TDirectionFilter) ?? "";
 
@@ -102,7 +101,7 @@ function Search() {
   const filters = React.useMemo(
     () => ({
       query,
-      statusFilter: statusFilterKey.split(",") as TStatusFilter[],
+      statusFilter,
       collectionId,
       userId,
       dateFilter,
@@ -113,7 +112,7 @@ function Search() {
     }),
     [
       query,
-      statusFilterKey,
+      statusFilter,
       collectionId,
       userId,
       dateFilter,
