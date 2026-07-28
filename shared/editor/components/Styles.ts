@@ -1437,8 +1437,8 @@ p {
   min-height: 1.6em;
 }
 
-/* Make top-level paragraphs a positioning context so the comment gutter anchors
-   to them (flush with the content column) */
+/* Fallback positioning context for comment gutters before JS pins them to the
+   content column (see CommentGutter). */
 .ProseMirror > p {
   position: relative;
 }
@@ -1447,14 +1447,8 @@ p {
   position: relative;
 }
 
-/* The heading is taller than the line, so pin the gutter vertically to center
-   its indicators against the text. Horizontal alignment is handled by the
-   gutter's own rule. */
-.heading-content .${EditorStyleHelper.commentGutter} {
-  top: 0;
-  bottom: 0;
-  justify-content: center;
-}
+/* Vertical centering for heading gutters is handled in CommentGutter via
+   fixed positioning (needed to escape nested overflow/position contexts). */
 
 .heading-content a,
 p a {
