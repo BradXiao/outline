@@ -78,6 +78,66 @@ function findContentColumn(from: HTMLElement, pm: HTMLElement): HTMLElement {
 }
 
 /**
+ * Find the editor grid column that wraps the document.
+ *
+ * @param pm - The ProseMirror root element.
+ * @returns the grid item wrapping the editor, or the ProseMirror root.
+ */
+function findEditorColumn(pm: HTMLElement): HTMLElement {
+  let node: HTMLElement | null = pm.parentElement;
+
+  while (node) {
+    const parent = node.parentElement;
+    if (parent && getComputedStyle(parent).display === "grid") {
+      return node;
+    }
+    node = parent;
+  }
+
+  return pm;
+}
+
+/**
+ * Find the inline-end edge of a sibling grid column (e.g. Contents/TOC) that
+ * sits beside the editor, if any.
+ *
+ * @param editorColumn - The editor's grid item.
+ * @param isRTL - Whether the document is right-to-left.
+ * @returns the viewport coordinate of that column's inner edge, or null.
+ */
+function findAdjacentColumnEdge(
+  editorColumn: HTMLElement,
+  isRTL: boolean
+): number | null {
+  const parent = editorColumn.parentElement;
+  if (!parent || getComputedStyle(parent).display !== "grid") {
+    return null;
+  }
+
+  const editorRect = editorColumn.getBoundingClientRect();
+
+  for (const child of Array.from(parent.children)) {
+    if (!(child instanceof HTMLElement) || child === editorColumn) {
+      continue;
+    }
+
+    const rect = child.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) {
+      continue;
+    }
+
+    if (!isRTL && rect.left >= editorRect.right - 2) {
+      return rect.left;
+    }
+    if (isRTL && rect.right <= editorRect.left + 2) {
+      return rect.right;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Position the gutter in the document margin beside the content column.
  * Uses `position: fixed` so nested `position`/`overflow` on tables, code
  * blocks, and quotes cannot trap or clip the indicator.
@@ -97,10 +157,13 @@ function positionGutter(gutter: HTMLElement) {
   }
 
   const columnRect = findContentColumn(gutter, pm).getBoundingClientRect();
+  const editorColumn = findEditorColumn(pm);
   const headingContent = gutter.closest(".heading-content");
   const lineRect = (headingContent ?? line).getBoundingClientRect();
   const isRTL = getComputedStyle(pm).direction === "rtl";
   const offset = EditorStyleHelper.padding + GUTTER_MARGIN;
+  const gutterWidth = gutter.offsetWidth || 40;
+  const adjacentEdge = findAdjacentColumnEdge(editorColumn, isRTL);
 
   // Headings are taller than a text line; center the indicator against the text.
   let top = lineRect.top;
@@ -115,21 +178,35 @@ function positionGutter(gutter: HTMLElement) {
   gutter.style.insetInlineStart = "auto";
   gutter.style.marginInlineStart = "0";
 
+  // Prefer the natural gutter slot. When Contents (TOC) is open beside the
+  // editor, clamp so indicators stay in the margin and do not cover it.
   if (isRTL) {
+    let right =
+      document.documentElement.clientWidth - columnRect.left + offset;
+    if (adjacentEdge !== null) {
+      const maxRight =
+        document.documentElement.clientWidth - adjacentEdge - gutterWidth - 4;
+      right = Math.min(right, Math.max(0, maxRight));
+    }
     gutter.style.left = "auto";
-    gutter.style.right = `${
-      document.documentElement.clientWidth - columnRect.left + offset
-    }px`;
+    gutter.style.right = `${right}px`;
   } else {
+    let left = columnRect.right + offset;
+    if (adjacentEdge !== null) {
+      left = Math.min(left, adjacentEdge - gutterWidth - 4);
+    }
     gutter.style.right = "auto";
-    gutter.style.left = `${columnRect.right + offset}px`;
+    gutter.style.left = `${left}px`;
   }
 
   // Hide when the line has scrolled out of the editor's visible area so the
-  // fixed indicator does not float over chrome (header, sidebars).
+  // fixed indicator does not float over chrome (header, sidebars). Also hide
+  // when Contents leaves too little room for a gutter beside the content.
   const pmRect = pm.getBoundingClientRect();
+  const fits =
+    adjacentEdge === null || adjacentEdge - columnRect.right >= gutterWidth;
   const inView = lineRect.bottom > pmRect.top && lineRect.top < pmRect.bottom;
-  gutter.style.visibility = inView ? "visible" : "hidden";
+  gutter.style.visibility = inView && fits ? "visible" : "hidden";
 }
 
 /**
@@ -153,12 +230,37 @@ export function CommentGutter({
     updatePosition();
 
     const pm = gutter.closest(".ProseMirror");
-    if (!pm) {
+    if (!(pm instanceof HTMLElement)) {
       return;
     }
 
-    const observer = new ResizeObserver(updatePosition);
-    observer.observe(pm);
+    const editorColumn = findEditorColumn(pm);
+    const grid = editorColumn.parentElement;
+    const resizeObserver = new ResizeObserver(updatePosition);
+    resizeObserver.observe(pm);
+    if (editorColumn !== pm) {
+      resizeObserver.observe(editorColumn);
+    }
+    // Watch sibling columns (Contents/TOC) so we reclamp when they appear.
+    if (grid) {
+      for (const child of Array.from(grid.children)) {
+        if (child instanceof HTMLElement) {
+          resizeObserver.observe(child);
+        }
+      }
+    }
+
+    const mutationObserver =
+      grid &&
+      new MutationObserver(() => {
+        for (const child of Array.from(grid.children)) {
+          if (child instanceof HTMLElement) {
+            resizeObserver.observe(child);
+          }
+        }
+        updatePosition();
+      });
+    mutationObserver?.observe(grid, { childList: true });
 
     // Capture phase so nested scroll containers (tables, code) are covered.
     window.addEventListener("scroll", updatePosition, {
@@ -168,7 +270,8 @@ export function CommentGutter({
     window.addEventListener("resize", updatePosition);
 
     return () => {
-      observer.disconnect();
+      resizeObserver.disconnect();
+      mutationObserver?.disconnect();
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
