@@ -62,6 +62,12 @@ class Comment extends ParanoidModel<
   @SkipChangeset
   data: ProsemirrorData;
 
+  @Column(DataType.TEXT)
+  suggestions: string | null;
+
+  @Column(DataType.TEXT)
+  originalText: string | null;
+
   @Column(DataType.JSONB)
   reactions: ReactionSummary[] | null;
 

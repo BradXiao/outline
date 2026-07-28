@@ -1,6 +1,7 @@
 import type { ProsemirrorData, ReactionSummary } from "@shared/types";
 import { CommentStatusFilter } from "@shared/types";
-import { Comment, Reaction } from "@server/models";
+import { Comment, Document, Reaction } from "@server/models";
+import { DocumentHelper } from "@server/models/helpers/DocumentHelper";
 import {
   buildAdmin,
   buildCollection,
@@ -858,6 +859,59 @@ describe("#comments.resolve", () => {
     expect(body.policies[0].abilities.delete).toBeTruthy();
     expect(body.policies[0].abilities.unresolve).toBeTruthy();
     expect(body.policies[0].abilities.resolve).toEqual(false);
+  });
+
+  it("should replace anchored text when resolving a suggestion", async () => {
+    const team = await buildTeam();
+    const user = await buildUser({ teamId: team.id });
+    const document = await buildDocument({
+      userId: user.id,
+      teamId: user.teamId,
+    });
+
+    const comment = await buildComment({
+      userId: user.id,
+      documentId: document.id,
+      suggestions: "replacement content",
+      originalText: "anchored content",
+    });
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "before " },
+            {
+              type: "text",
+              text: "anchored content",
+              marks: [buildCommentMark({ id: comment.id, userId: user.id })],
+            },
+            { type: "text", text: " after" },
+          ],
+        },
+      ],
+    } as ProsemirrorData;
+    await document.update({ content });
+
+    const res = await server.post("/api/comments.resolve", user, {
+      body: {
+        id: comment.id,
+      },
+    });
+    const body = await res.json();
+    const updatedDocument = await Document.findByPk(document.id, {
+      userId: user.id,
+      includeState: true,
+      rejectOnEmpty: true,
+    });
+
+    expect(res.status).toEqual(200);
+    expect(body.data.resolvedAt).toBeTruthy();
+    expect(body.data.originalText).toEqual("anchored content");
+    expect(DocumentHelper.toPlainText(updatedDocument)).toEqual(
+      "before replacement content after"
+    );
   });
 
   it("should not allow resolving a child comment", async () => {

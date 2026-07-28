@@ -1135,6 +1135,79 @@ export class ProsemirrorHelper extends SharedProsemirrorHelper {
     }
   }
 
+  /**
+   * Replaces the text currently carrying a comment mark in a document's Yjs state.
+   *
+   * @param params.docState The current Yjs document state.
+   * @param params.commentId The comment identifier whose anchor should be replaced.
+   * @param params.replacementText The plain text replacement.
+   * @returns Updated Yjs state, or null if the replacement cannot be applied.
+   * @throws ValidationError when the comment anchor is not found in the document.
+   */
+  static replaceCommentAnchorWithText({
+    docState,
+    commentId,
+    replacementText,
+  }: {
+    docState: Uint8Array;
+    commentId: string;
+    replacementText: string;
+  }): Buffer | null {
+    const yjsDoc = new Y.Doc();
+    Y.applyUpdate(yjsDoc, docState);
+    const doc = Node.fromJSON(schema, yDocToProsemirrorJSON(yjsDoc, "default"));
+    let from: number | null = null;
+    let to: number | null = null;
+
+    doc.descendants((node, pos) => {
+      const hasTextMark = node.marks.some(
+        (mark) =>
+          mark.type === schema.marks.comment && mark.attrs.id === commentId
+      );
+      const attrMarks = node.attrs.marks;
+      const hasAttrMark =
+        Array.isArray(attrMarks) &&
+        attrMarks.some(
+          (mark) => mark.type === "comment" && mark.attrs?.id === commentId
+        );
+
+      if (!hasTextMark && !hasAttrMark) {
+        return;
+      }
+
+      from = from === null ? pos : Math.min(from, pos);
+      to =
+        to === null ? pos + node.nodeSize : Math.max(to, pos + node.nodeSize);
+    });
+
+    if (from === null || to === null) {
+      throw ValidationError("Comment anchor was not found in the document");
+    }
+
+    try {
+      const initialState = EditorState.create({
+        doc,
+        schema,
+      });
+      const transformedState = initialState.apply(
+        initialState.tr.insertText(replacementText, from, to)
+      );
+      const yFragment = yjsDoc.get("default", Y.XmlFragment) as Y.XmlFragment;
+      if (!yFragment.doc) {
+        throw new Error("yFragment.doc not found");
+      }
+      updateYFragment(yFragment.doc, yFragment, transformedState.doc, {
+        mapping: new Map(),
+        isOMark: new Map(),
+      });
+
+      return Buffer.from(Y.encodeStateAsUpdate(yjsDoc));
+    } catch (error) {
+      Logger.error("Error replacing comment anchor with text", error as Error);
+      return null;
+    }
+  }
+
   private static applyCommentMarkAtRange(
     yjsDoc: Y.Doc,
     doc: Node,

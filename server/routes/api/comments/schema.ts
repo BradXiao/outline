@@ -42,6 +42,12 @@ export const CommentsCreateSchema = BaseSchema.extend({
       /** Create comment with this text */
       text: z.string().optional(),
 
+      /** Suggested replacement text for the comment anchor. */
+      suggestions: z.string().min(1).optional(),
+
+      /** Original text before a suggestion is accepted. */
+      originalText: z.string().optional(),
+
       /**
        * Plain text substring to anchor the comment to as an inline comment.
        * The first occurrence in the document's plain text is used.
@@ -68,7 +74,10 @@ export const CommentsCreateSchema = BaseSchema.extend({
       {
         error: "anchorPrefix and anchorSuffix require anchorText",
       }
-    ),
+    )
+    .refine((obj) => !(obj.suggestions && !obj.anchorText), {
+      error: "suggestions requires anchorText",
+    }),
 });
 
 export type CommentsCreateReq = z.infer<typeof CommentsCreateSchema>;
@@ -115,7 +124,10 @@ export const CommentsInfoSchema = z.object({
 export type CommentsInfoReq = z.infer<typeof CommentsInfoSchema>;
 
 export const CommentsResolveSchema = z.object({
-  body: BaseIdSchema,
+  body: BaseIdSchema.extend({
+    /** Whether to replace suggestion anchors server-side. */
+    replaceSuggestions: z.boolean().optional(),
+  }),
 });
 
 export type CommentsResolveReq = z.infer<typeof CommentsResolveSchema>;

@@ -35,6 +35,8 @@ export default function present(
     parentCommentId: comment.parentCommentId,
     createdBy: presentUser(comment.createdBy),
     createdById: comment.createdById,
+    suggestions: comment.suggestions,
+    originalText: comment.originalText,
     resolvedAt: comment.resolvedAt,
     resolvedBy: comment.resolvedBy ? presentUser(comment.resolvedBy) : null,
     resolvedById: comment.resolvedById,

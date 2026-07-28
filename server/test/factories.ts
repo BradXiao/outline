@@ -485,6 +485,8 @@ export async function buildComment(overrides: {
   parentCommentId?: string;
   resolvedById?: string;
   reactions?: ReactionSummary[];
+  suggestions?: string;
+  originalText?: string;
   createdAt?: Date;
 }) {
   const comment = await Comment.create(
@@ -509,6 +511,8 @@ export async function buildComment(overrides: {
       },
       createdById: overrides.userId,
       reactions: overrides.reactions,
+      suggestions: overrides.suggestions,
+      originalText: overrides.originalText,
       createdAt: overrides.createdAt,
       updatedAt: overrides.createdAt,
     },

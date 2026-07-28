@@ -951,6 +951,52 @@ export class Editor extends React.PureComponent<
     dispatch(tr);
   };
 
+  /**
+   * Replace all document content currently anchored to a comment.
+   *
+   * @param commentId The id of the comment anchor to replace.
+   * @param replacementText The plain text replacement.
+   * @returns Whether an anchored range was found and replaced.
+   */
+  public replaceCommentAnchorWithText = (
+    commentId: string,
+    replacementText: string
+  ): boolean => {
+    const { state, dispatch } = this.view;
+    let from: number | null = null;
+    let to: number | null = null;
+
+    state.doc.descendants((node, pos) => {
+      const hasTextMark = node.marks.some(
+        (mark) =>
+          mark.type === state.schema.marks.comment &&
+          mark.attrs.id === commentId
+      );
+      const attrMarks = node.attrs.marks;
+      const hasAttrMark =
+        isArray(attrMarks) &&
+        attrMarks.some(
+          (mark: ProsemirrorMark) =>
+            mark.type === "comment" && mark.attrs?.id === commentId
+        );
+
+      if (!hasTextMark && !hasAttrMark) {
+        return;
+      }
+
+      from = from === null ? pos : Math.min(from, pos);
+      to =
+        to === null ? pos + node.nodeSize : Math.max(to, pos + node.nodeSize);
+    });
+
+    if (from === null || to === null) {
+      return false;
+    }
+
+    dispatch(state.tr.insertText(replacementText, from, to));
+    return true;
+  };
+
   public updateActiveLightboxImage = (activeImage: LightboxImage | null) => {
     this.setState((state) => ({
       ...state,

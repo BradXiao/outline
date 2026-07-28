@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type Comment from "~/models/Comment";
 import { DropdownMenu } from "~/components/Menu/DropdownMenu";
 import { OverflowMenuButton } from "~/components/Menu/OverflowMenuButton";
+import { useDocumentContext } from "~/components/DocumentContext";
 import {
   deleteCommentFactory,
   resolveCommentFactory,
@@ -40,6 +41,7 @@ function CommentMenu({
   onUpdate,
   className,
 }: Props) {
+  const { editor } = useDocumentContext();
   const { documents } = useStores();
   const { t } = useTranslation();
   const can = usePolicy(comment);
@@ -51,6 +53,17 @@ function CommentMenu({
       toast.message(t("Link copied"));
     }
   }, [t, document, comment]);
+
+  const handleReplaceSuggestions = useCallback(() => {
+    if (!comment.suggestions) {
+      return false;
+    }
+
+    return (
+      editor?.replaceCommentAnchorWithText(comment.id, comment.suggestions) ??
+      false
+    );
+  }, [comment.id, comment.suggestions, editor]);
 
   const actions = useMemo(
     () => [
@@ -64,6 +77,7 @@ function CommentMenu({
       resolveCommentFactory({
         comment,
         onResolve: () => onUpdate({ resolved: true }),
+        onReplaceSuggestions: handleReplaceSuggestions,
       }),
       unresolveCommentFactory({
         comment,
@@ -81,7 +95,16 @@ function CommentMenu({
       ActionSeparator,
       deleteCommentFactory({ comment, onDelete }),
     ],
-    [t, comment, can.update, onEdit, onUpdate, onDelete, handleCopyLink]
+    [
+      t,
+      comment,
+      can.update,
+      onEdit,
+      onUpdate,
+      onDelete,
+      handleCopyLink,
+      handleReplaceSuggestions,
+    ]
   );
 
   const rootAction = useMenuAction(actions);

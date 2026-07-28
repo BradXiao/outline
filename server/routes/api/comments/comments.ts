@@ -13,6 +13,7 @@ import { transaction } from "@server/middlewares/transaction";
 import validate from "@server/middlewares/validate";
 import { ValidationError } from "@server/errors";
 import { Document, Comment, Collection, Reaction, Emoji } from "@server/models";
+import { DocumentHelper } from "@server/models/helpers/DocumentHelper";
 import { ProsemirrorHelper } from "@server/models/helpers/ProsemirrorHelper";
 import { TextHelper } from "@server/models/helpers/TextHelper";
 import { authorize } from "@server/policies";
@@ -39,6 +40,8 @@ router.post(
       anchorText,
       anchorPrefix,
       anchorSuffix,
+      suggestions,
+      originalText,
     } = ctx.input.body;
     const { user } = ctx.state.auth;
     const { transaction } = ctx.state;
@@ -107,6 +110,8 @@ router.post(
       createdById: user.id,
       documentId,
       parentCommentId,
+      suggestions,
+      originalText: suggestions ? (originalText ?? anchorText) : undefined,
     });
 
     comment.createdBy = user;
@@ -366,7 +371,7 @@ router.post(
   validate(T.CommentsResolveSchema),
   transaction(),
   async (ctx: APIContext<T.CommentsResolveReq>) => {
-    const { id } = ctx.input.body;
+    const { id, replaceSuggestions = true } = ctx.input.body;
     const { user } = ctx.state.auth;
     const { transaction } = ctx.state;
 
@@ -378,11 +383,51 @@ router.post(
         of: Comment,
       },
     });
+    if (comment.suggestions && replaceSuggestions) {
+      await Document.unscoped().findOne({
+        where: { id: comment.documentId },
+        attributes: ["id"],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+    }
+
     const document = await Document.findByPk(comment.documentId, {
       userId: user.id,
+      transaction,
+      includeState: !!comment.suggestions && replaceSuggestions,
     });
     authorize(user, "resolve", comment);
     authorize(user, "update", document);
+
+    if (comment.suggestions && replaceSuggestions) {
+      if (!document.state) {
+        throw ValidationError("Cannot replace text in this document");
+      }
+
+      if (!comment.originalText) {
+        const commentMarks = ProsemirrorHelper.getComments(
+          DocumentHelper.toProsemirror(document)
+        );
+        comment.originalText =
+          ProsemirrorHelper.getAnchorTextForComment(commentMarks, comment.id) ??
+          null;
+      }
+
+      const updatedState = ProsemirrorHelper.replaceCommentAnchorWithText({
+        docState: document.state,
+        commentId: comment.id,
+        replacementText: comment.suggestions,
+      });
+
+      if (!updatedState) {
+        throw ValidationError(
+          "Could not replace the comment anchor with suggestions"
+        );
+      }
+
+      await document.updateWithCtx(ctx, { state: updatedState });
+    }
 
     comment.resolve(user);
     await comment.saveWithCtx(ctx, { silent: true });

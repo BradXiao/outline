@@ -119,9 +119,13 @@ export default class CommentsStore extends Store<Comment> {
    * @returns Resolved comment
    */
   @action
-  resolve = async (id: string): Promise<Comment> => {
+  resolve = async (
+    id: string,
+    options: { replaceSuggestions?: boolean } = {}
+  ): Promise<Comment> => {
     const res = await client.post("/comments.resolve", {
       id,
+      replaceSuggestions: options.replaceSuggestions,
     });
     invariant(res?.data, "Comment not available");
     this.addPolicies(res.policies);

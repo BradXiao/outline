@@ -1358,6 +1358,37 @@ describe("ProsemirrorHelper", () => {
       return marks;
     };
 
+    it("replaces a comment anchor with suggestion text", () => {
+      const markedState = ProsemirrorHelper.applyCommentMarkByText({
+        docState: buildDocState([
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "The quick brown fox jumps" }],
+          },
+        ]),
+        anchorText: "brown fox",
+        commentId: "comment-1",
+        userId: "user-1",
+      });
+
+      const result = ProsemirrorHelper.replaceCommentAnchorWithText({
+        docState: markedState!,
+        commentId: "comment-1",
+        replacementText: "brisk change",
+      });
+
+      expect(result).toBeInstanceOf(Uint8Array);
+
+      const ydoc = new Y.Doc();
+      Y.applyUpdate(ydoc, result!);
+      const doc = Node.fromJSON(schema, yDocToProsemirrorJSON(ydoc, "default"));
+
+      expect(doc.textBetween(0, doc.content.size)).toEqual(
+        "The quick brisk change jumps"
+      );
+      expect(getCommentMarks(result!)).toHaveLength(0);
+    });
+
     it("anchors a comment to a substring within a single paragraph", () => {
       const docState = buildDocState([
         {

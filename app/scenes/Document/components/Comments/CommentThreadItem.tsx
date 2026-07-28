@@ -2,7 +2,7 @@ import { differenceInMilliseconds } from "date-fns";
 import { runInAction } from "mobx";
 import { observer } from "mobx-react";
 import { DoneIcon } from "outline-icons";
-import { darken } from "polished";
+import { darken, transparentize } from "polished";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -111,7 +111,7 @@ function CommentThreadItem({
   onEditStart,
   onEditEnd,
 }: Props) {
-  const { setFocusedCommentId } = useDocumentContext();
+  const { editor, setFocusedCommentId } = useDocumentContext();
   const { t } = useTranslation();
   const user = useCurrentUser();
   const [data, setData] = React.useState(comment.data);
@@ -165,6 +165,17 @@ function CommentThreadItem({
   const handleDelete = React.useCallback(() => {
     onDelete?.(comment.id);
   }, [comment.id, onDelete]);
+
+  const handleReplaceSuggestions = React.useCallback(() => {
+    if (!comment.suggestions) {
+      return false;
+    }
+
+    return (
+      editor?.replaceCommentAnchorWithText(comment.id, comment.suggestions) ??
+      false
+    );
+  }, [comment.id, comment.suggestions, editor]);
 
   const handleChange = React.useCallback(
     (value: (asString: boolean) => ProsemirrorData) => {
@@ -229,6 +240,20 @@ function CommentThreadItem({
         {highlightedText && (
           <HighlightedText>{highlightedText}</HighlightedText>
         )}
+        {comment.suggestions && (
+          <>
+            {comment.isResolved && comment.originalText && (
+              <OriginalText>
+                <SuggestionLabel>{t("Original")}</SuggestionLabel>
+                <OriginalValue>{comment.originalText}</OriginalValue>
+              </OriginalText>
+            )}
+            <SuggestionsText>
+              <SuggestionLabel>{t("Suggestion")}</SuggestionLabel>
+              {comment.suggestions}
+            </SuggestionsText>
+          </>
+        )}
         <Body ref={formRef} onSubmit={handleSubmit}>
           <React.Suspense fallback={null}>
             <StyledCommentEditor
@@ -280,7 +305,11 @@ function CommentThreadItem({
               {!comment.isResolved && (
                 <>
                   {firstOfThread && (
-                    <ResolveButton onUpdate={handleUpdate} comment={comment} />
+                    <ResolveButton
+                      onUpdate={handleUpdate}
+                      onReplaceSuggestions={handleReplaceSuggestions}
+                      comment={comment}
+                    />
                   )}
                   <Action
                     as={ReactionPicker}
@@ -309,20 +338,30 @@ function CommentThreadItem({
 
 const ResolveButton = ({
   comment,
+  onReplaceSuggestions,
   onUpdate,
 }: {
   comment: Comment;
+  onReplaceSuggestions: () => boolean;
   onUpdate: (attrs: { resolved: boolean }) => void;
 }) => {
   const { t } = useTranslation();
 
   return (
-    <Tooltip content={t("Mark as resolved")} placement="top">
+    <Tooltip
+      content={
+        comment.suggestions
+          ? t("Replace with suggestions")
+          : t("Mark as resolved")
+      }
+      placement="top"
+    >
       <Action
         as={NudeButton}
         action={resolveCommentFactory({
           comment,
           onResolve: () => onUpdate({ resolved: true }),
+          onReplaceSuggestions,
         })}
         $rounded
       >
@@ -360,6 +399,36 @@ const AvatarSpacer = styled(Flex)`
 
 const Body = styled.form`
   border-radius: 2px;
+`;
+
+const SuggestionsText = styled.div`
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-inline-start: 3px solid ${s("success")};
+  border-radius: 2px;
+  background: ${(props) => transparentize(0.88, props.theme.success)};
+  color: ${s("text")};
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+`;
+
+const OriginalText = styled(SuggestionsText)`
+  border-inline-start-color: ${s("danger")};
+  background: ${(props) => transparentize(0.9, props.theme.danger)};
+  color: ${s("textSecondary")};
+`;
+
+const OriginalValue = styled.div`
+  text-decoration: line-through;
+`;
+
+const SuggestionLabel = styled.div`
+  margin-bottom: 2px;
+  color: ${s("textTertiary")};
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
 `;
 
 const Action = styled.span<{ $rounded?: boolean }>`

@@ -35,22 +35,37 @@ export const deleteCommentFactory = ({
 export const resolveCommentFactory = ({
   comment,
   onResolve,
+  onReplaceSuggestions,
 }: {
   comment: Comment;
   onResolve: () => void;
+  onReplaceSuggestions?: () => boolean;
 }) =>
   createAction({
-    name: ({ t }) => t("Mark as resolved"),
-    analyticsName: "Resolve thread",
+    name: ({ t }) =>
+      comment.suggestions
+        ? t("Replace with suggestions")
+        : t("Mark as resolved"),
+    analyticsName: comment.suggestions
+      ? "Replace with suggestions"
+      : "Resolve thread",
     section: ActiveDocumentSection,
     icon: <DoneIcon outline />,
     visible: ({ stores }) =>
       stores.policies.abilities(comment.id).resolve &&
       stores.policies.abilities(comment.documentId).update,
     perform: async ({ t }) => {
-      await comment.resolve();
+      const replacedInEditor = comment.suggestions
+        ? (onReplaceSuggestions?.() ?? false)
+        : false;
+
+      await comment.resolve({
+        replaceSuggestions: comment.suggestions ? !replacedInEditor : undefined,
+      });
       onResolve();
-      toast.success(t("Thread resolved"));
+      toast.success(
+        comment.suggestions ? t("Suggestions applied") : t("Thread resolved")
+      );
     },
   });
 

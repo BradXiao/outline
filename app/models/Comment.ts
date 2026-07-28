@@ -21,6 +21,20 @@ class Comment extends Model {
   data: ProsemirrorData;
 
   /**
+   * Suggested replacement text for the comment anchor.
+   */
+  @Field
+  @observable
+  suggestions: string | null;
+
+  /**
+   * Original anchor text before suggestions were accepted.
+   */
+  @Field
+  @observable
+  originalText: string | null;
+
+  /**
    * If this comment is a reply then the parent comment will be set, otherwise
    * it is a top thread.
    */
@@ -113,8 +127,8 @@ class Comment extends Model {
   /**
    * Resolve the comment
    */
-  public resolve() {
-    return this.store.rootStore.comments.resolve(this.id);
+  public resolve(options?: { replaceSuggestions?: boolean }) {
+    return this.store.rootStore.comments.resolve(this.id, options);
   }
 
   /**

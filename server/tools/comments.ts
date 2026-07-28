@@ -24,6 +24,17 @@ import {
 } from "./util";
 import { ValidationError } from "@server/errors";
 
+interface CreateCommentInput {
+  documentId: string;
+  text: string;
+  parentCommentId?: string;
+  anchorText?: string;
+  anchorPrefix?: string;
+  anchorSuffix?: string;
+  suggestions?: string;
+  originalText?: string;
+}
+
 /**
  * Presents a comment with a plain-text rendering of its content so that
  * MCP consumers (typically AI agents) can read it without parsing
@@ -230,8 +241,10 @@ export function commentTools(server: McpServer, scopes: string[]) {
         anchorText,
         anchorPrefix,
         anchorSuffix,
-      },
-      context
+        suggestions,
+        originalText,
+      }: CreateCommentInput,
+      context: Parameters<typeof buildAPIContext>[0]
     ) => {
       try {
         const ctx = buildAPIContext(context);
@@ -293,6 +306,10 @@ export function commentTools(server: McpServer, scopes: string[]) {
             createdById: user.id,
             documentId,
             parentCommentId,
+            suggestions,
+            originalText: suggestions
+              ? (originalText ?? anchorText)
+              : undefined,
           });
 
           created.createdBy = user;
@@ -373,6 +390,51 @@ export function commentTools(server: McpServer, scopes: string[]) {
         },
       },
       withTracing("create_comment_on_text", createComment)
+    );
+
+    server.registerTool(
+      "create_suggestions",
+      {
+        title: "Create suggestions",
+        description:
+          "Creates a new suggestion comment on specific document text. Provide comment content as markdown text, the document text to anchor to, and the suggested replacement text.",
+        annotations: {
+          idempotentHint: false,
+          readOnlyHint: false,
+        },
+        inputSchema: {
+          documentId: z
+            .string()
+            .describe("The document ID to suggest changes on."),
+          text: z
+            .string()
+            .describe("The markdown text content of the suggestion comment."),
+          parentCommentId: optionalString().describe(
+            "The parent comment ID to reply to. Omit for a top-level suggestion."
+          ),
+          anchorText: z
+            .string()
+            .describe(
+              "A plain text substring of the document to anchor this suggestion to."
+            ),
+          suggestions: z
+            .string()
+            .min(1)
+            .describe(
+              "The plain text that should replace anchorText when accepted."
+            ),
+          originalText: optionalString().describe(
+            "The original text that suggestions will replace. Defaults to anchorText."
+          ),
+          anchorPrefix: optionalString().describe(
+            "Only provide this if anchorText appears more than once in the document and you need to target a specific occurrence. Plain text that immediately precedes anchorText."
+          ),
+          anchorSuffix: optionalString().describe(
+            "Only provide this if anchorText appears more than once in the document and you need to target a specific occurrence. Plain text that immediately follows anchorText."
+          ),
+        },
+      },
+      withTracing("create_suggestions", createComment)
     );
   }
 
