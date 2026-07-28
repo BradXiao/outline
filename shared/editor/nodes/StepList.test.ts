@@ -217,6 +217,36 @@ describe("StepListItem", () => {
     expect(result.result.doc.eq(document)).toBe(true);
   });
 
+  it("lets code blocks handle Shift+Enter inside step content", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    })["Shift-Enter"];
+    const item = step_list_item.create(null, [
+      p("First"),
+      schema.nodes.code_block.create(null, schema.text("code")),
+    ]);
+    const document = doc([step_list.create(null, [item])]);
+
+    let state = createEditorState(document);
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) => child.type.name === "code_block"
+          )
+        )
+      )
+    );
+
+    const { handled, result } = applyCommand(state, command);
+
+    expect(handled).toBe(false);
+    expect(result.doc.eq(document)).toBe(true);
+  });
+
   it("jumps to the next step from an empty direct paragraph", () => {
     const command = new StepListItem().keys({
       type: step_list_item,

@@ -9,6 +9,7 @@ import type { Command, EditorState } from "prosemirror-state";
 import { Plugin, TextSelection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { MarkdownSerializerState } from "../lib/markdown/serializer";
+import { isInCode } from "../queries/isInCode";
 import { findParentNodeClosestToPos } from "../queries/findParentNode";
 import Node from "./Node";
 
@@ -188,6 +189,10 @@ const insertSubtitle = (
 const splitWithinStep =
   (type: NodeType, schema: Schema): Command =>
   (state, dispatch) => {
+    if (isInCode(state, { onlyBlock: true })) {
+      return false;
+    }
+
     if (insertSubtitle(state, dispatch, type, schema)) {
       return true;
     }
