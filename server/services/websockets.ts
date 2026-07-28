@@ -26,6 +26,21 @@ type SocketWithAuth = IO.Socket & {
   };
 };
 
+function toHttpOrigin(value: string) {
+  try {
+    return new URL(value.replace(/^ws/, "http")).origin;
+  } catch (_err) {
+    return undefined;
+  }
+}
+
+function isAllowedOrigin(origin: string) {
+  return [env.URL, env.COLLABORATION_URL]
+    .map(toHttpOrigin)
+    .filter((value) => value !== undefined)
+    .includes(origin);
+}
+
 export default function init(
   app: Koa,
   server: http.Server,
@@ -68,7 +83,7 @@ export default function init(
         // In cloud-hosted we support any origin for custom domains.
         if (
           !env.isCloudHosted &&
-          (!req.headers.origin || !env.URL.startsWith(req.headers.origin))
+          (!req.headers.origin || !isAllowedOrigin(req.headers.origin))
         ) {
           socket.end(`HTTP/1.1 400 Bad Request\r\n`);
           return;
