@@ -263,10 +263,14 @@ export function isHeaderEnabled(
  * @returns Boolean indicating if the row is selected
  */
 export function isRowSelected(index: number) {
-  return (state: EditorState): boolean =>
-    state.selection instanceof RowSelection && state.selection.isRowSelection()
-      ? state.selection.$index === index
-      : false;
+  return (state: EditorState): boolean => {
+    if (isRowSelection(state)) {
+      const rect = selectedRect(state);
+      return rect.top <= index && rect.bottom > index;
+    }
+
+    return false;
+  };
 }
 
 /**

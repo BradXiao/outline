@@ -84,6 +84,7 @@ export default function tableColMenuItems(ctx: SelectionContext): MenuItem[] {
   }
 
   const tableMap = selectedRect(state);
+  const isSingleColumn = selectedCols.length <= 1;
   const colColors = getColumnColors(state, index);
   const hasBackground = colColors.size > 0;
   const activeColor =
@@ -215,33 +216,35 @@ export default function tableColMenuItems(ctx: SelectionContext): MenuItem[] {
       name: "toggleHeaderColumn",
       label: t("Toggle header"),
       icon: <TableHeaderColumnIcon />,
-      visible: index === 0,
+      visible: isSingleColumn && index === 0,
     },
     {
       name: rtl ? "addColumnAfter" : "addColumnBefore",
       label: rtl ? t("Insert after") : t("Insert before"),
       icon: <InsertLeftIcon />,
       attrs: { index },
+      visible: isSingleColumn,
     },
     {
       name: rtl ? "addColumnBefore" : "addColumnAfter",
       label: rtl ? t("Insert before") : t("Insert after"),
       icon: <InsertRightIcon />,
       attrs: { index },
+      visible: isSingleColumn,
     },
     {
       name: "moveTableColumn",
       label: t("Move left"),
       icon: <ArrowLeftIcon />,
       attrs: { from: index, to: index - 1 },
-      visible: index > 0,
+      visible: isSingleColumn && index > 0,
     },
     {
       name: "moveTableColumn",
       label: t("Move right"),
       icon: <ArrowRightIcon />,
       attrs: { from: index, to: index + 1 },
-      visible: index < tableMap.map.width - 1,
+      visible: isSingleColumn && index < tableMap.map.width - 1,
     },
     {
       name: "separator",

@@ -7,6 +7,7 @@ import { DecorationSet, Decoration } from "prosemirror-view";
 import { isInTable, moveTableColumn, TableMap } from "prosemirror-tables";
 import { addColumnBefore, selectColumn } from "../commands/table";
 import { isMobile } from "../../utils/browser";
+import { isModKey } from "../../utils/keyboard";
 import {
   getCellAttrs,
   isValidCellAlignment,
@@ -465,7 +466,7 @@ export default class TableHeader extends Node {
                 const colIndex = Number(
                   targetGripColumn.getAttribute("data-index")
                 );
-                selectColumn(colIndex, event.metaKey || event.shiftKey)(
+                selectColumn(colIndex, isModKey(event) || event.shiftKey)(
                   view.state,
                   view.dispatch
                 );

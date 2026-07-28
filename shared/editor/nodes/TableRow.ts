@@ -8,6 +8,7 @@ import { Decoration, DecorationSet } from "prosemirror-view";
 import type { EditorView } from "prosemirror-view";
 import { Plugin } from "prosemirror-state";
 import { addRowBefore, selectRow, selectTable } from "../commands/table";
+import { isModKey } from "../../utils/keyboard";
 import { isMobile } from "../../utils/browser";
 import {
   getCellsInRow,
@@ -400,7 +401,7 @@ export default class TableRow extends Node {
                 const rowIndex = Number(
                   targetGripRow.getAttribute("data-index")
                 );
-                selectRow(rowIndex, event.metaKey || event.shiftKey)(
+                selectRow(rowIndex, isModKey(event) || event.shiftKey)(
                   view.state,
                   view.dispatch
                 );

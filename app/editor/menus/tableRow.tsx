@@ -13,6 +13,7 @@ import {
 import type { EditorState } from "prosemirror-state";
 import { CellSelection, selectedRect } from "prosemirror-tables";
 import {
+  getAllSelectedRows,
   getCellsInRow,
   isMergedCellSelection,
   isMultipleCellSelection,
@@ -99,6 +100,7 @@ export default function tableRowMenuItems(ctx: SelectionContext): MenuItem[] {
   }
 
   const tableMap = selectedRect(state);
+  const isSingleRow = getAllSelectedRows(state).length <= 1;
   const rowAlignments = getRowAlignments(state, index);
   const isAlignment = (alignment: string) =>
     rowAlignments.size === 1 && rowAlignments.has(alignment);
@@ -202,33 +204,35 @@ export default function tableRowMenuItems(ctx: SelectionContext): MenuItem[] {
       name: "toggleHeaderRow",
       label: t("Toggle header"),
       icon: <TableHeaderRowIcon />,
-      visible: index === 0,
+      visible: isSingleRow && index === 0,
     },
     {
       name: "addRowBefore",
       label: t("Insert before"),
       icon: <InsertAboveIcon />,
       attrs: { index },
+      visible: isSingleRow,
     },
     {
       name: "addRowAfter",
       label: t("Insert after"),
       icon: <InsertBelowIcon />,
       attrs: { index },
+      visible: isSingleRow,
     },
     {
       name: "moveTableRow",
       label: t("Move up"),
       icon: <ArrowUpIcon />,
       attrs: { from: index, to: index - 1 },
-      visible: index > 0,
+      visible: isSingleRow && index > 0,
     },
     {
       name: "moveTableRow",
       label: t("Move down"),
       icon: <ArrowDownIcon />,
       attrs: { from: index, to: index + 1 },
-      visible: index < tableMap.map.height - 1,
+      visible: isSingleRow && index < tableMap.map.height - 1,
     },
     {
       name: "separator",

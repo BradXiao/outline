@@ -9,6 +9,7 @@ import { collapseSelection } from "@shared/editor/commands/collapseSelection";
 import { isTableSelected } from "@shared/editor/queries/table";
 import { ColumnSelection } from "@shared/editor/selection/ColumnSelection";
 import { RowSelection } from "@shared/editor/selection/RowSelection";
+import { EditorStyleHelper } from "@shared/editor/styles/EditorStyleHelper";
 import type { MenuItem } from "@shared/editor/types";
 import { useTranslation } from "react-i18next";
 import Scrollable from "~/components/Scrollable";
@@ -26,6 +27,12 @@ import useMobile from "~/hooks/useMobile";
 import { mapMenuItems } from "../menus/mapMenuItems";
 import { useEditor } from "./EditorContext";
 import { useInlineMenuAnchor } from "./useInlineMenuAnchor";
+
+const TABLE_GRIP_SELECTOR = [
+  `.${EditorStyleHelper.tableGrip}`,
+  `.${EditorStyleHelper.tableGripRow}`,
+  `.${EditorStyleHelper.tableGripColumn}`,
+].join(", ");
 
 type Props = {
   items: MenuItem[];
@@ -137,9 +144,23 @@ const InlineMenu: React.FC<Props> = ({ items, rtl }) => {
   useEventListener("keydown", handleKeyDown, window, { capture: true });
 
   // Dismiss the menu by collapsing the selection so the toolbar stops matching.
+  // Clicks on table grips must not collapse first — Shift/Ctrl-click expand needs
+  // the existing CellSelection, and the grip handler updates selection itself.
   const handleDismiss = React.useCallback(() => {
     collapseSelection()(view.state, view.dispatch);
   }, [view]);
+
+  const handleInteractOutside = React.useCallback(
+    (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(TABLE_GRIP_SELECTOR)) {
+        event.preventDefault();
+        return;
+      }
+      handleDismiss();
+    },
+    [handleDismiss]
+  );
 
   if (isMobile) {
     return (
@@ -169,7 +190,7 @@ const InlineMenu: React.FC<Props> = ({ items, rtl }) => {
             collisionPadding={6}
             aria-label={t("Options")}
             onCloseAutoFocus={preventFocus}
-            onInteractOutside={handleDismiss}
+            onInteractOutside={handleInteractOutside}
             onEscapeKeyDown={handleDismiss}
             asChild
           >
