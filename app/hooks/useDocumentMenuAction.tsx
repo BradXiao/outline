@@ -5,6 +5,7 @@ import {
   ImportIcon,
   LightningIcon,
   MoreIcon,
+  OpenIcon,
   SearchIcon,
 } from "outline-icons";
 import {
@@ -97,6 +98,12 @@ export function useDocumentMenuAction({
           perform: () => onFindAndReplace?.(),
         }),
         ActionSeparator,
+        createActionWithChildren({
+          name: t("Open in"),
+          section: ActiveDocumentSection,
+          icon: <OpenIcon />,
+          children: [openDocumentInSplit, openDocumentInNewWindow],
+        }),
         editDocument,
         createActionWithChildren({
           name: t("Actions"),
@@ -144,8 +151,6 @@ export function useDocumentMenuAction({
               children: [importDocument, importDirectory],
             }),
             searchInDocument,
-            openDocumentInNewWindow,
-            openDocumentInSplit,
             openDocumentInDesktop,
             presentDocument,
           ],

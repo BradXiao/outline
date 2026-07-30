@@ -1051,7 +1051,7 @@ export const printDocument = createAction({
 });
 
 export const openDocumentInNewWindow = createAction({
-  name: ({ t }) => t("Open in new window"),
+  name: ({ t, isMenu }) => (isMenu ? t("New window") : t("Open in new window")),
   analyticsName: "Open document in new window",
   section: ActiveDocumentSection,
   icon: <OpenIcon />,
@@ -1112,7 +1112,8 @@ export const openDocumentInDesktop = createAction({
 });
 
 export const openDocumentInSplit = createAction({
-  name: ({ t }) => t("Open in split view"),
+  name: ({ t, isMenu }) =>
+    isMenu ? t("Split view") : t("Open in split view"),
   analyticsName: "Open document in split view",
   section: ActiveDocumentSection,
   icon: <SplitIcon />,
