@@ -38,7 +38,7 @@ export default class Notice extends Node {
           default: NoticeTypes.Info,
         },
         fitContent: {
-          default: false,
+          default: true,
         },
       },
       content:
