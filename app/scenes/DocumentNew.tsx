@@ -26,7 +26,11 @@ function DocumentNew() {
 
   useEffect(() => {
     async function createDocument() {
-      const index = parseInt(query.get("index") || "0", 10);
+      const indexParam = query.get("index");
+      const index =
+        indexParam !== null && indexParam !== ""
+          ? parseInt(indexParam, 10)
+          : undefined;
       const parentDocumentId = query.get("parentDocumentId") ?? undefined;
       const parentDocument = parentDocumentId
         ? documents.get(parentDocumentId)
@@ -51,7 +55,7 @@ function DocumentNew() {
           },
           {
             publish: collection?.id || parentDocumentId ? true : undefined,
-            index,
+            ...(index !== undefined && !Number.isNaN(index) ? { index } : {}),
           }
         );
 

@@ -1075,7 +1075,7 @@ describe("#documents.list", () => {
     });
 
     // Create 25 documents for pagination testing
-    // Note: buildDocument adds each doc to position 0, so they'll be in reverse order
+    // buildDocument appends each doc, so they'll be in creation order
     const documents = [];
     for (let i = 0; i < 25; i++) {
       const doc = await buildDocument({
@@ -1087,9 +1087,8 @@ describe("#documents.list", () => {
       documents.push(doc);
     }
 
-    // Documents are added at position 0, so the order in documentStructure is reversed
-    // documents[24] is first, documents[0] is last
-    const expectedOrder = documents.slice().reverse();
+    // documents[0] is first, documents[24] is last
+    const expectedOrder = documents;
 
     // First page (offset=0, limit=10)
     const res1 = await server.post("/api/documents.list", user, {

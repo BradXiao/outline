@@ -14,6 +14,7 @@ import type Document from "~/models/Document";
 import type GroupMembership from "~/models/GroupMembership";
 import type UserMembership from "~/models/UserMembership";
 import type { RefHandle } from "~/components/EditableTitle";
+import EditableTitle from "~/components/EditableTitle";
 import { useActiveSidebarContext } from "~/hooks/useActiveSidebarContext";
 import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
 import useBoolean from "~/hooks/useBoolean";
@@ -24,6 +25,7 @@ import useOnScreen from "~/hooks/useOnScreen";
 import usePolicy from "~/hooks/usePolicy";
 import useStores from "~/hooks/useStores";
 import DocumentMenu from "~/menus/DocumentMenu";
+import { DocumentValidation } from "@shared/validations";
 import { documentEditPath } from "~/utils/routeHelpers";
 import {
   useDragDocument,
@@ -37,6 +39,7 @@ import DropCursor from "./DropCursor";
 import Folder from "./Folder";
 import type { SidebarContextType } from "./SidebarContext";
 import { useSidebarContext } from "./SidebarContext";
+import SidebarLink from "./SidebarLink";
 
 type Props = {
   node: NavigationNode;
@@ -128,6 +131,13 @@ const DocumentLink = observer(function DocumentLink(props: Props) {
   const isOnScreen = useOnScreen(placeholderRef, observerOptions);
   const isDragActive = useIsDragActive();
   const [mounted, setMounted] = React.useState(false);
+  const [isAddingNewChild, setIsAddingNewChild, closeAddingNewChild] =
+    useBoolean();
+  const newChildTitleRef = React.useRef<RefHandle>(null);
+  const { t } = useTranslation();
+  const history = useHistory();
+  const user = useCurrentUser();
+  const document = documents.get(node.id);
 
   // Flip mount state during render (not in an effect) so the first paint
   // already contains the row content when the placeholder is on screen,
@@ -158,11 +168,63 @@ const DocumentLink = observer(function DocumentLink(props: Props) {
     }
   }, [isActiveDocument, sidebarContext, activeSidebarContext]);
 
+  const handleNewDoc = React.useCallback(
+    async (input: string) => {
+      const newDocument = await documents.create(
+        {
+          collectionId: collection?.id,
+          parentDocumentId: node.id,
+          fullWidth:
+            document?.fullWidth ??
+            user.getPreference(UserPreference.FullWidthDocuments),
+          title: input,
+          data: ProsemirrorDataHelper.getEmpty(),
+        },
+        { publish: true }
+      );
+      collection?.addDocument(newDocument, node.id);
+      props.membership?.addDocument(newDocument, node.id);
+      history.push({
+        pathname: documentEditPath(newDocument),
+        state: { sidebarContext },
+      });
+    },
+    [
+      documents,
+      collection,
+      props.membership,
+      sidebarContext,
+      user,
+      node.id,
+      document,
+      history,
+    ]
+  );
+
+  const handleNewChildSubmit = React.useCallback(
+    async (value: string) => {
+      try {
+        newChildTitleRef.current?.setIsEditing(false);
+        await handleNewDoc(value);
+        closeAddingNewChild();
+      } catch (_err) {
+        newChildTitleRef.current?.setIsEditing(true);
+      }
+    },
+    [handleNewDoc, closeAddingNewChild]
+  );
+
   return (
     <>
       <div ref={placeholderRef} style={{ minHeight: ROW_HEIGHT }}>
         {mounted ? (
-          <DocumentLinkInner {...props} hasChildren={nodeChildren.length > 0} />
+          <DocumentLinkInner
+            {...props}
+            hasChildren={nodeChildren.length > 0}
+            deferNewChildInput
+            onStartAddChild={setIsAddingNewChild}
+            onCreateChild={handleNewDoc}
+          />
         ) : null}
       </div>
       <Folder expanded={expanded}>
@@ -181,12 +243,34 @@ const DocumentLink = observer(function DocumentLink(props: Props) {
           />
         ))}
       </Folder>
+      {isAddingNewChild && (
+        <SidebarLink
+          isActive={() => true}
+          depth={props.depth + 1}
+          ellipsis={false}
+          label={
+            <EditableTitle
+              title=""
+              canUpdate
+              isEditing
+              placeholder={`${t("New doc")}…`}
+              onCancel={closeAddingNewChild}
+              onSubmit={handleNewChildSubmit}
+              maxLength={DocumentValidation.maxTitleLength}
+              ref={newChildTitleRef}
+            />
+          }
+        />
+      )}
     </>
   );
 });
 
 type InnerProps = Props & {
   hasChildren: boolean;
+  deferNewChildInput?: boolean;
+  onStartAddChild?: () => void;
+  onCreateChild?: (title: string) => Promise<void>;
 };
 
 const DocumentLinkInner = observer(function DocumentLinkInner({
@@ -199,17 +283,18 @@ const DocumentLinkInner = observer(function DocumentLinkInner({
   index,
   parentId,
   hasChildren,
+  deferNewChildInput,
+  onStartAddChild,
+  onCreateChild,
 }: InnerProps) {
   const { documents } = useStores();
   const { t } = useTranslation();
-  const history = useHistory();
   const can = usePolicy(node.id);
   const canUpdate = can.update;
   const document = documents.get(node.id);
   const [isEditing, setIsEditing] = React.useState(false);
   const editableTitleRef = React.useRef<RefHandle>(null);
   const sidebarContext = useSidebarContext();
-  const user = useCurrentUser();
   const expansion = useSidebarExpansion();
   const expanded = expansion.isExpanded(node.id);
 
@@ -366,39 +451,6 @@ const DocumentLinkInner = observer(function DocumentLinkInner({
 
   const title = document?.title || node.title || t("Untitled");
 
-  const handleNewDoc = React.useCallback(
-    async (input: string) => {
-      const newDocument = await documents.create(
-        {
-          collectionId: collection?.id,
-          parentDocumentId: node.id,
-          fullWidth:
-            document?.fullWidth ??
-            user.getPreference(UserPreference.FullWidthDocuments),
-          title: input,
-          data: ProsemirrorDataHelper.getEmpty(),
-        },
-        { publish: true }
-      );
-      collection?.addDocument(newDocument, node.id);
-      membership?.addDocument(newDocument, node.id);
-      history.push({
-        pathname: documentEditPath(newDocument),
-        state: { sidebarContext },
-      });
-    },
-    [
-      documents,
-      collection,
-      membership,
-      sidebarContext,
-      user,
-      node.id,
-      document,
-      history,
-    ]
-  );
-
   const contextMenuAction = useDocumentMenuAction({
     documentId: node.id,
     onRename: handleRename,
@@ -465,7 +517,9 @@ const DocumentLinkInner = observer(function DocumentLinkInner({
       menu={menu}
       menuOpen={menuOpen}
       canCreateChild={can.createChildDocument}
-      onCreateChild={handleNewDoc}
+      onCreateChild={onCreateChild}
+      deferNewChildInput={deferNewChildInput}
+      onStartAddChild={onStartAddChild}
       contextAction={contextMenuAction}
       isActiveOverride={isActiveCheck}
       onClickIntent={handlePrefetch}

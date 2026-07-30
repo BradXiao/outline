@@ -513,7 +513,9 @@ class Document extends ArchivableModel<
         return;
       }
 
-      await collection.addDocumentToStructure(model, 0, { transaction });
+      await collection.addDocumentToStructure(model, undefined, {
+        transaction,
+      });
       model.collection = collection;
     });
   }
@@ -1064,7 +1066,7 @@ class Document extends ArchivableModel<
   publish = async (
     ctx: APIContext,
     {
-      index = 0,
+      index,
       collectionId,
       silent = false,
       event = true,

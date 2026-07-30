@@ -141,13 +141,13 @@ export default abstract class NavigableModel extends Model {
     }
 
     if (this.documentId && parentDocumentId === this.documentId) {
-      this.setDocuments([document.asNavigationNode, ...(this.documents ?? [])]);
+      this.setDocuments([...(this.documents ?? []), document.asNavigationNode]);
     }
 
     const travelNodes = (nodes: NavigationNode[]) =>
       nodes.forEach((node) => {
         if (node.id === parentDocumentId) {
-          node.children = [document.asNavigationNode, ...(node.children ?? [])];
+          node.children = [...(node.children ?? []), document.asNavigationNode];
         } else {
           travelNodes(node.children);
         }

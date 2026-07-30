@@ -427,7 +427,7 @@ export async function buildDocument(
         })
       : undefined;
 
-    await collection?.addDocumentToStructure(document, 0);
+    await collection?.addDocumentToStructure(document);
   }
 
   return document;

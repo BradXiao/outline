@@ -96,6 +96,14 @@ export type DocumentRowProps = {
   onCreateChild?: (title: string) => Promise<void>;
   /** Depth of the inline new-child SidebarLink. Defaults to `depth + 1`. */
   newChildDepth?: number;
+  /**
+   * When true, the "+" button still expands and invokes `onStartAddChild`, but
+   * the inline title input is not rendered here — the parent places it after
+   * sibling children (needed when children are rendered outside this row).
+   */
+  deferNewChildInput?: boolean;
+  /** Called when the user clicks the "+" new-child button. */
+  onStartAddChild?: () => void;
 
   /** Context menu action for the row. */
   contextAction?: ActionWithChildren | ActionFactory;
@@ -146,6 +154,8 @@ function DocumentRow({
   canCreateChild,
   onCreateChild,
   newChildDepth,
+  deferNewChildInput,
+  onStartAddChild,
   contextAction,
   isActiveOverride,
   children,
@@ -183,10 +193,14 @@ function DocumentRow({
   const handleAddChild = React.useCallback(
     (ev: React.MouseEvent<HTMLButtonElement>) => {
       ev.preventDefault();
-      setIsAddingNewChild();
       onExpand?.();
+      if (deferNewChildInput) {
+        onStartAddChild?.();
+        return;
+      }
+      setIsAddingNewChild();
     },
-    [setIsAddingNewChild, onExpand]
+    [setIsAddingNewChild, onExpand, deferNewChildInput, onStartAddChild]
   );
 
   const handleNewChildSubmit = React.useCallback(
@@ -303,7 +317,8 @@ function DocumentRow({
         </Draggable>
         {cursorAfter}
       </Relative>
-      {isAddingNewChild && onCreateChild && (
+      {children}
+      {!deferNewChildInput && isAddingNewChild && onCreateChild && (
         <SidebarLink
           isActive={() => true}
           depth={newChildDepth ?? depth + 1}
@@ -322,7 +337,6 @@ function DocumentRow({
           }
         />
       )}
-      {children}
     </ActionContextProvider>
   );
 }

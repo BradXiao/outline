@@ -320,14 +320,14 @@ export default class Collection extends ParanoidModel {
     }
 
     if (!parentDocumentId) {
-      this.documents.unshift(document.asNavigationNode);
+      this.documents.push(document.asNavigationNode);
       return;
     }
 
     const travelNodes = (nodes: NavigationNode[]) =>
       nodes.forEach((node) => {
         if (node.id === parentDocumentId) {
-          node.children = [document.asNavigationNode, ...(node.children ?? [])];
+          node.children = [...(node.children ?? []), document.asNavigationNode];
         } else {
           travelNodes(node.children);
         }

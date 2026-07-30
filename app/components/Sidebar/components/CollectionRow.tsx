@@ -233,6 +233,7 @@ function CollectionRow({
           {sidebarLinkElement}
         </DropToImport>
       </Relative>
+      {children}
       {isAddingNewChild && onCreateChild && (
         <SidebarLink
           isActive={() => true}
@@ -252,7 +253,6 @@ function CollectionRow({
           }
         />
       )}
-      {children}
     </ActionContextProvider>
   );
 }

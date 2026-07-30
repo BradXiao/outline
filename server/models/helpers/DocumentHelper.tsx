@@ -1189,8 +1189,7 @@ export class DocumentHelper {
   /**
    * Sorts an array of documents based on their order in the collection's document structure.
    * Documents are ordered according to their position in the navigation structure, with
-   * documents not found in the structure placed at the end. The result is reversed to
-   * account for documents being added in reverse order during processing.
+   * documents not found in the structure placed at the end.
    *
    * @param documents - Array of Document objects to be sorted
    * @param documentStructure - Array of NavigationNode objects representing the collection's document hierarchy
