@@ -1,7 +1,7 @@
 import { observer } from "mobx-react";
 import * as React from "react";
 import type { RouteComponentProps, StaticContext } from "react-router";
-import { useLocation } from "react-router";
+import { useHistory, useLocation } from "react-router";
 import { toError } from "@shared/utils/error";
 import { ProsemirrorDataHelper } from "@shared/utils/ProsemirrorDataHelper";
 import { RevisionHelper } from "@shared/utils/RevisionHelper";
@@ -27,7 +27,7 @@ import {
   OfflineError,
   PaymentRequiredError,
 } from "~/utils/errors";
-import history, { patchLocation } from "~/utils/history";
+import { patchLocation } from "~/utils/history";
 import {
   matchDocumentEdit,
   settingsPath,
@@ -70,6 +70,9 @@ function DataLoader({ match, children }: Props) {
   const { ui, views, shares, comments, documents, revisions } = useStores();
   const team = useCurrentTeam();
   const user = useCurrentUser();
+  // Use the nearest router history so canonical-url sync and redirects stay
+  // inside the current split view pane instead of rewriting the browser URL.
+  const history = useHistory();
   const { setDocument } = useDocumentContext();
   const [error, setError] = React.useState<Error | null>(null);
   const { revisionId, documentSlug } = match.params;
@@ -256,7 +259,7 @@ function DataLoader({ match, children }: Props) {
         pathname: canonicalUrl,
       })
     );
-  }, [canonicalUrl]);
+  }, [canonicalUrl, history]);
 
   if (error) {
     return error instanceof OfflineError ? (
