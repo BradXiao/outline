@@ -1,7 +1,7 @@
 import { observer } from "mobx-react";
 import * as React from "react";
 import type { RouteComponentProps, StaticContext } from "react-router";
-import { Redirect, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import { toError } from "@shared/utils/error";
 import { ProsemirrorDataHelper } from "@shared/utils/ProsemirrorDataHelper";
 import { RevisionHelper } from "@shared/utils/RevisionHelper";
@@ -27,7 +27,7 @@ import {
   OfflineError,
   PaymentRequiredError,
 } from "~/utils/errors";
-import history from "~/utils/history";
+import history, { patchLocation } from "~/utils/history";
 import {
   matchDocumentEdit,
   settingsPath,
@@ -239,6 +239,25 @@ function DataLoader({ match, children }: Props) {
     }
   }, [document, query, ui]);
 
+  // Keep the address bar in sync when the document slug changes (e.g. after
+  // naming a new doc). Use history.replace in an effect instead of a render-
+  // time <Redirect> so the document editor stays mounted — unmounting would
+  // re-trigger cursor-restore opacity hiding and multiplayer reconnect.
+  const canonicalUrl = document
+    ? updateDocumentPath(match.url, document)
+    : undefined;
+  React.useEffect(() => {
+    if (!canonicalUrl || history.location.pathname === canonicalUrl) {
+      return;
+    }
+
+    history.replace(
+      patchLocation(history.location, {
+        pathname: canonicalUrl,
+      })
+    );
+  }, [canonicalUrl]);
+
   if (error) {
     return error instanceof OfflineError ? (
       <ErrorOffline />
@@ -262,21 +281,6 @@ function DataLoader({ match, children }: Props) {
       <>
         <Loading location={location} />
       </>
-    );
-  }
-
-  // Redirect to the canonical URL if the document slug has changed, e.g.
-  // after a rename, so the browser address bar stays in sync.
-  const canonicalUrl = updateDocumentPath(match.url, document);
-  if (location.pathname !== canonicalUrl) {
-    return (
-      <Redirect
-        to={{
-          pathname: canonicalUrl,
-          state: location.state,
-          hash: location.hash,
-        }}
-      />
     );
   }
 

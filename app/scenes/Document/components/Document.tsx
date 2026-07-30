@@ -151,6 +151,9 @@ function DocumentScene({
   } = useDocumentSave({ document, editorRef, readOnly });
 
   const finishCursorRestore = useCallback((options?: { reveal?: boolean }) => {
+    // Multiplayer onInit restores before Yjs sync; keep ready=false so onSynced
+    // can run the real reveal+focus pass. Do not mark complete or clear the
+    // fallback timeout here.
     if (options?.reveal === false) {
       return;
     }
@@ -178,12 +181,13 @@ function DocumentScene({
       cursorRestoreFallbackTimeoutRef.current = undefined;
     }
 
+    // Evaluate once per document open. Do not depend on the callback identity —
+    // churn there was clearing the fallback timeout and could leave opacity at 0.
     if (shouldRestoreCursorPosition() && !cursorRestoreReadyRef.current) {
       setIsRestoringCursor(true);
-      cursorRestoreFallbackTimeoutRef.current = window.setTimeout(
-        finishCursorRestore,
-        1000
-      );
+      cursorRestoreFallbackTimeoutRef.current = window.setTimeout(() => {
+        finishCursorRestore();
+      }, 1000);
     } else {
       setIsRestoringCursor(false);
     }
@@ -199,16 +203,19 @@ function DocumentScene({
         cursorRestoreFallbackTimeoutRef.current = undefined;
       }
     };
-  }, [document.id, finishCursorRestore, shouldRestoreCursorPosition]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when switching documents
+  }, [document.id]);
 
   const isFocusedRef = useRef(isFocused);
   isFocusedRef.current = isFocused;
 
   const restoreCursorPosition = useCallback((options?: { reveal?: boolean }) => {
     // Once restored for this document open, skip — split-pane focus changes
-    // rebuild this callback (via isFocused) and re-fire MultiplayerEditor's
-    // onSynced effect, which would otherwise re-scroll the unfocused pane.
+    // rebuild this callback and re-fire MultiplayerEditor's onSynced effect,
+    // which would otherwise re-scroll the unfocused pane. Still reveal in case
+    // opacity was left at 0.
     if (cursorRestoreReadyRef.current) {
+      finishCursorRestore(options);
       return;
     }
 
@@ -240,8 +247,11 @@ function DocumentScene({
           !multiplayerEditor || (docSize > 2 && pos <= docSize);
 
         if (canRestoreNow || cursorRestoreAttemptsRef.current >= 600) {
+          // Only focus the focused split pane (or the sole pane). Focusing
+          // while still hidden (reveal:false) often does not stick — the
+          // revealing onSynced pass focuses again once opacity is restored.
           editor.scrollToPosition(pos, {
-            focus: isFocusedRef.current,
+            focus: options?.reveal !== false && isFocusedRef.current,
             viewportOffset: getCursorViewportOffset(document.id),
           });
           finishCursorRestore(options);
@@ -287,6 +297,8 @@ function DocumentScene({
       editor.commands.find({ text: searchTerm });
       finishCursorRestore();
     } else {
+      // Multiplayer onInit may have restored with reveal:false; always reveal
+      // once the collaborative document is synced.
       restoreCursorPosition();
     }
 
@@ -516,9 +528,6 @@ function DocumentScene({
   const fullWidthTransformOffsetStyle = {
     ["--full-width-transform-offset"]: `${document.fullWidth && showContents ? tocOffset : 0}px`,
   } as React.CSSProperties;
-  const hideDocumentSceneForCursorRestore =
-    isRestoringCursor ||
-    (shouldRestoreCursorPosition() && !cursorRestoreReadyRef.current);
 
   return (
     <ErrorBoundary showTitle>
@@ -595,7 +604,7 @@ function DocumentScene({
                 docFullWidth={document.fullWidth}
                 showContents={showContents}
                 tocPosition={tocPos}
-                $isRestoringCursor={hideDocumentSceneForCursorRestore}
+                $isRestoringCursor={isRestoringCursor}
               >
                 {revision ? (
                   <RevisionViewer
