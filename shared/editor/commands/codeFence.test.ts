@@ -191,4 +191,45 @@ describe("enterInCode", () => {
     expect(state.doc.lastChild?.type.name).toBe("paragraph");
     expect(state.doc.childCount).toBe(3);
   });
+
+  it("exits and removes a trailing empty line on double Enter", () => {
+    const testDoc = doc([codeBlock("hello\n")]);
+    let state = createEditorState(testDoc);
+    const end = state.doc.firstChild!.nodeSize - 1;
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, end))
+    );
+
+    const handled = enterInCode(state, (tr) => {
+      state = state.apply(tr);
+    });
+
+    expect(handled).toBe(true);
+    expect(state.doc.firstChild?.textContent).toBe("hello");
+    expect(state.doc.lastChild?.type.name).toBe("paragraph");
+    expect(state.doc.childCount).toBe(2);
+  });
+
+  it("exits and removes a trailing auto-indented empty line", () => {
+    const testDoc = doc([codeBlock("  hello\n  ")]);
+    let state = createEditorState(testDoc);
+    const end = state.doc.firstChild!.nodeSize - 1;
+    state = state.apply(
+      state.tr.setSelection(TextSelection.create(state.doc, end))
+    );
+
+    const handled = enterInCode(state, (tr) => {
+      state = state.apply(tr);
+    });
+
+    expect(handled).toBe(true);
+    expect(state.doc.firstChild?.textContent).toBe("  hello");
+    expect(state.doc.lastChild?.type.name).toBe("paragraph");
+    expect(state.doc.childCount).toBe(2);
+  });
+
+  it("inserts a newline when Enter is not on a trailing empty line", () => {
+    const text = runInCodeBlock("hello", 6, 6, enterInCode);
+    expect(text).toBe("hello\n");
+  });
 });

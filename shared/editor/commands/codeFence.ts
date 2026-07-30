@@ -231,8 +231,9 @@ export const outdentInCode: Command = (state, dispatch) => {
 };
 
 /**
- * Exit the code block by moving the cursor to the end of the code block and
- * inserting a newline character.
+ * Exit the code block when Enter is pressed on a trailing empty line, matching
+ * the double-Enter exit behavior of quotes and notices. Removes the empty line
+ * (and any auto-indent whitespace) before inserting a paragraph below.
  *
  * @returns A prosemirror command
  */
@@ -241,13 +242,30 @@ export const enterInCode: Command = (state, dispatch) => {
     return false;
   }
   const { selection } = state;
-  const text = selection.$anchor.nodeBefore?.text;
   const selectionAtEnd =
     selection.$anchor.parentOffset === selection.$anchor.parent.nodeSize - 2;
 
-  if (selectionAtEnd && text?.endsWith(newline)) {
-    exitCode(state, dispatch);
-    return true;
+  if (selectionAtEnd) {
+    // Match a trailing blank line, including auto-indent spaces from newlineInCode.
+    const trailingEmptyLine = selection.$anchor.parent.textContent.match(
+      /\n[ \t]*$/
+    );
+
+    if (trailingEmptyLine) {
+      const deleteFrom = selection.$anchor.pos - trailingEmptyLine[0].length;
+      const deleteTo = selection.$anchor.pos;
+      const exited = exitCode(
+        state,
+        dispatch &&
+          ((tr) => {
+            tr.delete(deleteFrom, deleteTo);
+            dispatch(tr);
+          })
+      );
+      if (exited) {
+        return true;
+      }
+    }
   }
 
   return newlineInCode(state, dispatch);
