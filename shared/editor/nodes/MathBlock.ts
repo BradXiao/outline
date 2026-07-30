@@ -9,7 +9,7 @@ import type {
   Node as ProsemirrorNode,
 } from "prosemirror-model";
 import type { Command } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import { NodeSelection } from "prosemirror-state";
 import type { MarkdownSerializerState } from "../lib/markdown/serializer";
 import { escapeRawTableCell } from "../lib/markdown/tableCell";
 import mathRule, { REGEX_BLOCK_MATH_DOLLARS } from "../rules/math";
@@ -30,12 +30,11 @@ export default class MathBlock extends Node {
 
   commands({ type }: { type: NodeType }) {
     return (): Command => (state, dispatch) => {
+      // NodeSelection triggers MathView.selectNode() which opens the nested editor.
       const tr = state.tr.replaceSelectionWith(type.create());
       dispatch?.(
         tr
-          .setSelection(
-            TextSelection.near(tr.doc.resolve(state.selection.from - 1))
-          )
+          .setSelection(NodeSelection.create(tr.doc, state.selection.from - 1))
           .scrollIntoView()
       );
       return true;
