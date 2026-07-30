@@ -201,7 +201,17 @@ function DocumentScene({
     };
   }, [document.id, finishCursorRestore, shouldRestoreCursorPosition]);
 
+  const isFocusedRef = useRef(isFocused);
+  isFocusedRef.current = isFocused;
+
   const restoreCursorPosition = useCallback((options?: { reveal?: boolean }) => {
+    // Once restored for this document open, skip — split-pane focus changes
+    // rebuild this callback (via isFocused) and re-fire MultiplayerEditor's
+    // onSynced effect, which would otherwise re-scroll the unfocused pane.
+    if (cursorRestoreReadyRef.current) {
+      return;
+    }
+
     const params = new URLSearchParams(location.search);
     const searchTerm = params.get("q");
 
@@ -231,7 +241,7 @@ function DocumentScene({
 
         if (canRestoreNow || cursorRestoreAttemptsRef.current >= 600) {
           editor.scrollToPosition(pos, {
-            focus: isFocused,
+            focus: isFocusedRef.current,
             viewportOffset: getCursorViewportOffset(document.id),
           });
           finishCursorRestore(options);
@@ -258,7 +268,6 @@ function DocumentScene({
   }, [
     document.id,
     finishCursorRestore,
-    isFocused,
     location.search,
     multiplayerEditor,
     user,
