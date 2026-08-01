@@ -30,6 +30,7 @@ import CollectionDuplicateDialog from "~/components/CollectionDuplicateDialog";
 import ConfirmationDialog from "~/components/ConfirmationDialog";
 import { DialogTitle } from "~/components/DialogTitle";
 import DynamicCollectionIcon from "~/components/Icons/CollectionIcon";
+import { ImportDocumentDialog } from "~/components/ImportDocumentDialog";
 import { getHeaderExpandedKey } from "~/components/Sidebar/components/Header";
 import {
   createAction,
@@ -45,7 +46,6 @@ import {
   searchPath,
 } from "~/utils/routeHelpers";
 import ExportDialog from "~/components/ExportDialog";
-import { getEventFiles } from "@shared/utils/files";
 import { isMobile } from "@shared/utils/browser";
 import history from "~/utils/history";
 import lazyWithRetry from "~/utils/lazyWithRetry";
@@ -177,11 +177,23 @@ export const duplicateCollection = createAction({
   },
 });
 
-export const importDocument = createAction({
-  name: ({ t }) => t("Import document"),
+export const importDocument = dialogActionFactory({
   analyticsName: "Import document",
   section: ActiveCollectionSection,
   icon: <ImportIcon />,
+  name: (t) => `${t("Import documents")}…`,
+  title: (t, { getActiveModel }) => (
+    <DialogTitle
+      title={t("Import documents")}
+      model={getActiveModel(Collection)}
+    />
+  ),
+  content: (onSubmit, { getActiveModel }) => {
+    const collection = getActiveModel(Collection);
+    return collection ? (
+      <ImportDocumentDialog collectionId={collection.id} onSubmit={onSubmit} />
+    ) : null;
+  },
   visible: ({ getActivePolicies }) =>
     getActivePolicies(Collection).some(
       (policy) => policy.abilities.createDocument

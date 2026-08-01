@@ -41,7 +41,6 @@ import Icon from "@shared/components/Icon";
 import type { NavigationNode } from "@shared/types";
 import { ExportContentType } from "@shared/types";
 import { isMobile } from "@shared/utils/browser";
-import { getEventFiles } from "@shared/utils/files";
 import { Week } from "@shared/utils/time";
 import type UserMembership from "~/models/UserMembership";
 import { client } from "~/utils/ApiClient";
@@ -55,6 +54,7 @@ import { DialogTitle } from "~/components/DialogTitle";
 import DocumentCopy from "~/components/DocumentExplorer/DocumentCopy";
 import { DocumentDownload } from "~/components/DocumentDownload";
 import MarkdownIcon from "~/components/Icons/MarkdownIcon";
+import { ImportDocumentDialog } from "~/components/ImportDocumentDialog";
 import { getHeaderExpandedKey } from "~/components/Sidebar/components/Header";
 import DocumentTemplatizeDialog from "~/components/TemplatizeDialog";
 import {
@@ -63,6 +63,7 @@ import {
   createActionWithChildren,
   createInternalLinkAction,
 } from "~/actions";
+import { dialogActionFactory } from "~/actions/definitions/common";
 import {
   ActiveDocumentSection,
   DocumentSection,
@@ -1159,12 +1160,44 @@ export const presentDocument = createAction({
   },
 });
 
-export const importDocument = createAction({
-  name: ({ t }) => t("Import document"),
+/**
+ * Returns the document or collection that an import will be nested inside.
+ *
+ * @param context - the action context.
+ * @returns the parent model, if it is loaded.
+ */
+function getImportParent({
+  activeDocumentId,
+  activeCollectionId,
+  stores,
+}: ActionContext) {
+  if (activeDocumentId) {
+    return stores.documents.get(activeDocumentId);
+  }
+  return activeCollectionId
+    ? stores.collections.get(activeCollectionId)
+    : undefined;
+}
+
+export const importDocument = dialogActionFactory({
   analyticsName: "Import document",
   section: DocumentSection,
   icon: <ImportIcon />,
   keywords: "upload",
+  name: (t) => `${t("Import documents")}…`,
+  title: (t, context) => (
+    <DialogTitle
+      title={t("Import documents")}
+      model={getImportParent(context)}
+    />
+  ),
+  content: (onSubmit, { activeDocumentId, activeCollectionId }) => (
+    <ImportDocumentDialog
+      documentId={activeDocumentId}
+      collectionId={activeCollectionId}
+      onSubmit={onSubmit}
+    />
+  ),
   visible: ({ activeCollectionId, activeDocumentId, stores }) => {
     if (activeDocumentId) {
       return !!stores.policies.abilities(activeDocumentId).createChildDocument;
