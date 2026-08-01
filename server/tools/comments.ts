@@ -282,23 +282,26 @@ export function commentTools(server: McpServer, scopes: string[]) {
               throw ValidationError("Cannot inline comment on this document");
             }
 
-            const updatedState = ProsemirrorHelper.applyCommentMarkByText({
-              docState: document.state,
-              anchorText,
-              commentId,
-              userId: user.id,
-              prefix: anchorPrefix,
-              suffix: anchorSuffix,
-            });
+                const updated = ProsemirrorHelper.applyCommentMarkByText({
+                  docState: document.state,
+                  anchorText,
+                  commentId,
+                  userId: user.id,
+                  prefix: anchorPrefix,
+                  suffix: anchorSuffix,
+                });
 
-            if (!updatedState) {
-              throw ValidationError(
-                "Could not anchor comment to the provided text in the document"
-              );
-            }
+                if (!updated) {
+                  throw ValidationError(
+                    "Could not anchor comment to the provided text in the document"
+                  );
+                }
 
-            await document.updateWithCtx(ctx, { state: updatedState });
-          }
+                await document.updateWithCtx(ctx, {
+                  state: updated.state,
+                  content: updated.content,
+                });
+              }
 
           const created = await Comment.createWithCtx(ctx, {
             id: commentId,

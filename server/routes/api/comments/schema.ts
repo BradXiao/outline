@@ -65,6 +65,13 @@ export const CommentsCreateSchema = BaseSchema.extend({
        * to select a specific occurrence when `anchorText` is ambiguous.
        */
       anchorSuffix: z.string().optional(),
+
+      /**
+       * Hash identifying a node in the document to anchor the comment to,
+       * e.g. an image, as computed by `ProsemirrorHelper.getNodeHash`. The
+       * first matching node in document order is used.
+       */
+      anchorNodeId: z.string().optional(),
     })
     .refine((obj) => !(isEmpty(obj.data) && isEmpty(obj.text)), {
       error: "One of data or text is required",
@@ -75,6 +82,9 @@ export const CommentsCreateSchema = BaseSchema.extend({
         error: "anchorPrefix and anchorSuffix require anchorText",
       }
     )
+    .refine((obj) => !(obj.anchorText && obj.anchorNodeId), {
+      error: "anchorText and anchorNodeId are mutually exclusive",
+    })
     .refine((obj) => !(obj.suggestions && !obj.anchorText), {
       error: "suggestions requires anchorText",
     }),
