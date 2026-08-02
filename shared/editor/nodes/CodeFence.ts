@@ -41,6 +41,7 @@ import Mermaid, {
 } from "../extensions/Mermaid";
 import {
   getLabelForLanguage,
+  getCodeLanguageFromElement,
   getRecentlyUsedCodeLanguage,
   normalizeCodeLanguage,
   setRecentlyUsedCodeLanguage,
@@ -77,21 +78,6 @@ const COLLAPSE_HEIGHT_RATIO = 0.5;
 
 /** Approximate rendered line height of a code block, in pixels. */
 const CODE_LINE_HEIGHT = 20;
-
-function getCodeLanguageFromElement(dom: HTMLElement): string | undefined {
-  const dataLanguage = dom.dataset.language ?? dom.dataset.lang;
-  if (dataLanguage) {
-    return normalizeCodeLanguage(dataLanguage) ?? dataLanguage;
-  }
-
-  const className = [
-    ...Array.from(dom.classList),
-    ...Array.from(dom.parentElement?.classList ?? []),
-  ].find((name) => name.startsWith("language-") || name.startsWith("lang-"));
-  const language = className?.replace(/^(?:language|lang)-/, "");
-
-  return language ? (normalizeCodeLanguage(language) ?? language) : undefined;
-}
 
 interface CollapseState {
   /** Positions of code blocks taller than COLLAPSE_HEIGHT_RATIO of the viewport. */
@@ -251,7 +237,7 @@ export default class CodeFence extends Node<CodeFenceOptions> {
           contentElement: (node: HTMLElement) =>
             node.querySelector("code") || node,
           getAttrs: (dom: HTMLDivElement) => ({
-            language: getCodeLanguageFromElement(dom),
+            language: getCodeLanguageFromElement(dom) ?? "none",
             title: dom.dataset.title ?? null,
             hl: dom.dataset.hl ?? null,
             ln: dom.dataset.ln ?? null,
@@ -269,7 +255,7 @@ export default class CodeFence extends Node<CodeFenceOptions> {
             if (!dom.textContent?.includes("\n")) {
               return false;
             }
-            return { language: getCodeLanguageFromElement(dom) };
+            return { language: getCodeLanguageFromElement(dom) ?? "none" };
           },
         },
       ],

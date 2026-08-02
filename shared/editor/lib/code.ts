@@ -472,6 +472,30 @@ export const normalizeCodeLanguage = (
 };
 
 /**
+ * Returns the language identifier from data attributes or class names on an
+ * element, for use when parsing pasted HTML.
+ *
+ * @param dom - The HTML element to inspect.
+ * @returns the canonical editor language identifier, or undefined if unknown.
+ */
+export const getCodeLanguageFromElement = (
+  dom: HTMLElement
+): string | undefined => {
+  const dataLanguage = dom.dataset.language ?? dom.dataset.lang;
+  if (dataLanguage) {
+    return normalizeCodeLanguage(dataLanguage) ?? dataLanguage;
+  }
+
+  const className = [
+    ...Array.from(dom.classList),
+    ...Array.from(dom.parentElement?.classList ?? []),
+  ].find((name) => name.startsWith("language-") || name.startsWith("lang-"));
+  const language = className?.replace(/^(?:language|lang)-/, "");
+
+  return language ? (normalizeCodeLanguage(language) ?? language) : undefined;
+};
+
+/**
  * Get the human-readable label for a given language.
  *
  * @param language The language identifier.

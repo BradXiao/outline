@@ -91,6 +91,22 @@ it("parses pasted code HTML as a code fence", () => {
   expect(codeBlock?.textContent).toBe(`const hello = "world";\n`);
 });
 
+it("parses unlabeled pasted code HTML as plain text", () => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const element = document.createElement("div");
+  element.innerHTML = `<pre><code>echo $SHELL\n</code></pre>`;
+
+  const doc = domParser.parse(element);
+  const codeBlock = doc.content.firstChild;
+
+  expect(codeBlock?.type.name).toBe("code_fence");
+  expect(codeBlock?.attrs.language).toBe("none");
+  expect(codeBlock?.textContent).toBe("echo $SHELL\n");
+});
+
 it("round-trips a toggle block inside a table cell", () => {
   const doc = tableWith({
     type: "container_toggle",
