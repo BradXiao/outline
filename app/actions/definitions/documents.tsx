@@ -1454,11 +1454,13 @@ export const archiveDocument = createAction({
             const succeeded = await performBatch(documents, (document) =>
               document.archive()
             );
-            toast.success(
-              documents.length === 1
-                ? t("Document archived")
-                : t("{{ count }} documents archived", { count: succeeded })
-            );
+            if (succeeded) {
+              toast.success(
+                documents.length === 1
+                  ? t("Document archived")
+                  : t("{{ count }} documents archived", { count: succeeded })
+              );
+            }
           }}
           savingText={`${t("Archiving")}…`}
         >
@@ -1606,9 +1608,11 @@ export const deleteDocument = createAction({
             const succeeded = await performBatch(documents, (document) =>
               document.delete()
             );
-            toast.success(
-              t("{{ count }} documents moved to trash", { count: succeeded })
-            );
+            if (succeeded) {
+              toast.success(
+                t("{{ count }} documents moved to trash", { count: succeeded })
+              );
+            }
           }}
         >
           {t("Deleting these documents will move them to the trash.")}
