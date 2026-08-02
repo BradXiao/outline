@@ -2365,6 +2365,28 @@ export const examples: Example[] = [
             },
           ],
         },
+        {
+          type: "container_notice",
+          attrs: { style: "question" },
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "This is a question to consider." },
+              ],
+            },
+          ],
+        },
+        {
+          type: "container_notice",
+          attrs: { style: "error" },
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "This is an error message." }],
+            },
+          ],
+        },
       ],
     },
   },

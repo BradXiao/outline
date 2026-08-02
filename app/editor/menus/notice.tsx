@@ -1,8 +1,10 @@
 import { t } from "i18next";
 import {
+  CrossIcon,
   DoneIcon,
   ExpandedIcon,
   InfoIcon,
+  QuestionMarkIcon,
   ShrinkIcon,
   StarredIcon,
   WarningIcon,
@@ -25,6 +27,8 @@ export default function noticeMenuItems(ctx: SelectionContext): MenuItem[] {
     [NoticeTypes.Warning]: t("Warning notice"),
     [NoticeTypes.Success]: t("Success notice"),
     [NoticeTypes.Tip]: t("Tip notice"),
+    [NoticeTypes.Question]: t("Question notice"),
+    [NoticeTypes.Error]: t("Error notice"),
   };
 
   return [
@@ -67,6 +71,18 @@ export default function noticeMenuItems(ctx: SelectionContext): MenuItem[] {
           icon: <StarredIcon />,
           label: t("Tip notice"),
           active: () => currentStyle === NoticeTypes.Tip,
+        },
+        {
+          name: NoticeTypes.Question,
+          icon: <QuestionMarkIcon />,
+          label: t("Question notice"),
+          active: () => currentStyle === NoticeTypes.Question,
+        },
+        {
+          name: NoticeTypes.Error,
+          icon: <CrossIcon />,
+          label: t("Error notice"),
+          active: () => currentStyle === NoticeTypes.Error,
         },
       ],
     },

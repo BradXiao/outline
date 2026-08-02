@@ -1,5 +1,12 @@
 import type Token from "markdown-it/lib/token.mjs";
-import { WarningIcon, InfoIcon, StarredIcon, DoneIcon } from "outline-icons";
+import {
+  CrossIcon,
+  DoneIcon,
+  InfoIcon,
+  QuestionMarkIcon,
+  StarredIcon,
+  WarningIcon,
+} from "outline-icons";
 import { wrappingInputRule } from "prosemirror-inputrules";
 import type {
   NodeSpec,
@@ -20,6 +27,8 @@ export enum NoticeTypes {
   Success = "success",
   Tip = "tip",
   Warning = "warning",
+  Question = "question",
+  Error = "error",
 }
 
 export default class Notice extends Node {
@@ -60,7 +69,11 @@ export default class Notice extends Node {
                 ? NoticeTypes.Warning
                 : dom.className.includes(NoticeTypes.Success)
                   ? NoticeTypes.Success
-                  : undefined,
+                  : dom.className.includes(NoticeTypes.Question)
+                    ? NoticeTypes.Question
+                    : dom.className.includes(NoticeTypes.Error)
+                      ? NoticeTypes.Error
+                      : undefined,
             fitContent: dom.classList.contains("with-fit-content"),
           }),
         },
@@ -81,7 +94,9 @@ export default class Notice extends Node {
               ? NoticeTypes.Warning
               : dom.className.includes(NoticeTypes.Success)
                 ? NoticeTypes.Success
-                : undefined,
+                : dom.className.includes(NoticeTypes.Error)
+                  ? NoticeTypes.Error
+                  : undefined,
           }),
         },
         // Confluence parsing
@@ -103,8 +118,7 @@ export default class Notice extends Node {
         "div",
         { class: `${EditorStyleHelper.notice} ${node.attrs.style}` },
         ["div", { class: EditorStyleHelper.noticeContent }, 0],
-      ]
-      ,
+      ],
     };
   }
 
@@ -120,8 +134,16 @@ export default class Notice extends Node {
         this.handleStyleChange(state, dispatch, NoticeTypes.Success),
       tip: (): Command => (state, dispatch) =>
         this.handleStyleChange(state, dispatch, NoticeTypes.Tip),
-      toggleNoticeFitContent: (): Command =>
-        (state: EditorState, dispatch: ((tr: Transaction) => void) | undefined) => {
+      question: (): Command => (state, dispatch) =>
+        this.handleStyleChange(state, dispatch, NoticeTypes.Question),
+      error: (): Command => (state, dispatch) =>
+        this.handleStyleChange(state, dispatch, NoticeTypes.Error),
+      toggleNoticeFitContent:
+        (): Command =>
+        (
+          state: EditorState,
+          dispatch: ((tr: Transaction) => void) | undefined
+        ) => {
           const { tr, selection } = state;
           const { $from } = selection;
           const node = $from.node(-1);
@@ -174,12 +196,20 @@ export default class Notice extends Node {
       icon = <WarningIcon />;
     } else if (node.attrs.style === NoticeTypes.Success) {
       icon = <DoneIcon />;
+    } else if (node.attrs.style === NoticeTypes.Question) {
+      icon = <QuestionMarkIcon />;
+    } else if (node.attrs.style === NoticeTypes.Error) {
+      icon = <CrossIcon />;
     } else {
       icon = <InfoIcon />;
     }
 
     return (
-      <div className={`${EditorStyleHelper.notice} ${node.attrs.style}${node.attrs.fitContent ? " with-fit-content" : ""}`}>
+      <div
+        className={`${EditorStyleHelper.notice} ${node.attrs.style}${
+          node.attrs.fitContent ? " with-fit-content" : ""
+        }`}
+      >
         <div className={EditorStyleHelper.noticeIcon} contentEditable={false}>
           {icon}
         </div>

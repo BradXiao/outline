@@ -168,12 +168,14 @@ export class NotionConverter {
     const colorToNoticeType: Record<string, NoticeTypes> = {
       default_background: NoticeTypes.Info,
       blue_background: NoticeTypes.Info,
-      purple_background: NoticeTypes.Info,
+      purple_background: NoticeTypes.Tip,
       green_background: NoticeTypes.Success,
-      orange_background: NoticeTypes.Tip,
-      yellow_background: NoticeTypes.Tip,
-      pink_background: NoticeTypes.Warning,
-      red_background: NoticeTypes.Warning,
+      orange_background: NoticeTypes.Warning,
+      yellow_background: NoticeTypes.Warning,
+      pink_background: NoticeTypes.Error,
+      red_background: NoticeTypes.Error,
+      gray_background: NoticeTypes.Question,
+      brown_background: NoticeTypes.Question,
     };
 
     return {
