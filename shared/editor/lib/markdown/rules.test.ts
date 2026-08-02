@@ -34,4 +34,15 @@ describe("makeRules", () => {
     expect(indented).not.toContain("code_block");
     expect(fenced).not.toContain("fence");
   });
+
+  it("disables indented code while keeping fences when disableIndentedCode is set", () => {
+    const md = makeRules({
+      schema: schemaWith(["code_block"]),
+      disableIndentedCode: true,
+    });
+    const indented = md.parse("    foo\n", {}).map((token) => token.type);
+    const fenced = md.parse("```\nfoo\n```\n", {}).map((token) => token.type);
+    expect(indented).not.toContain("code_block");
+    expect(fenced).toContain("fence");
+  });
 });

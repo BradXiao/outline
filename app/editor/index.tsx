@@ -461,6 +461,7 @@ export class Editor extends React.PureComponent<
       schema: this.schema,
       rules: { linkify: true },
       plugins: this.rulePlugins,
+      disableIndentedCode: true,
     });
   }
 

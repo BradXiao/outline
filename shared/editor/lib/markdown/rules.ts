@@ -11,12 +11,18 @@ type Options = {
   plugins?: PluginSimple[];
   /** The schema for associated editor. */
   schema?: Schema;
+  /**
+   * Disable indented (4-space) code blocks while keeping fenced code blocks.
+   * Used for paste so clipboard indentation is not treated as code.
+   */
+  disableIndentedCode?: boolean;
 };
 
 export default function makeRules({
   rules = {},
   plugins = [],
   schema,
+  disableIndentedCode = false,
 }: Options) {
   const markdownIt = markdownit("default", {
     breaks: false,
@@ -45,6 +51,8 @@ export default function makeRules({
   if (!schema?.nodes.code_block) {
     // "code" is indented code blocks, "fence" is ``` delimited blocks.
     markdownIt.disable(["code", "fence"]);
+  } else if (disableIndentedCode) {
+    markdownIt.disable("code");
   }
 
   plugins.forEach((plugin) => markdownIt.use(plugin));

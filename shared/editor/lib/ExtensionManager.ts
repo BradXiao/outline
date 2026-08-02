@@ -148,10 +148,12 @@ export default class ExtensionManager {
     schema,
     rules,
     plugins,
+    disableIndentedCode,
   }: {
     schema: Schema;
     rules?: Options;
     plugins?: PluginSimple[];
+    disableIndentedCode?: boolean;
   }): MarkdownParser {
     const tokens = Object.fromEntries(
       this.extensions
@@ -169,7 +171,7 @@ export default class ExtensionManager {
 
     return new MarkdownParser(
       schema,
-      makeRules({ rules, schema, plugins }),
+      makeRules({ rules, schema, plugins, disableIndentedCode }),
       tokens
     );
   }
