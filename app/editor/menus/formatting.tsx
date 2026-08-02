@@ -216,6 +216,8 @@ export default function formattingMenuItems(ctx: SelectionContext): MenuItem[] {
       },
     },
     {
+      name: "highlight",
+      applyOnOpen: true,
       tooltip: t("Highlight"),
       shortcut: `${metaDisplay}+⇧+H`,
       icon: highlight ? (

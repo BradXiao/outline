@@ -3,7 +3,6 @@ import type { MarkType } from "prosemirror-model";
 import type { Command, EditorState } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 import type { Primitive } from "utility-types";
-import { chainTransactions } from "../lib/chainTransactions";
 import { getMarksBetween } from "../queries/getMarksBetween";
 import { isMarkActive } from "../queries/isMarkActive";
 
@@ -120,10 +119,19 @@ export function toggleMark(
     }
 
     if (isMarkActive(type)(state)) {
-      return chainTransactions(pmToggleMark(type), pmToggleMark(type, attrs))(
-        state,
-        dispatch
-      );
+      if (!attrs) {
+        return pmToggleMark(type)(state, dispatch);
+      }
+
+      const { from, to } = state.selection;
+      if (dispatch) {
+        dispatch(
+          state.tr
+            .removeMark(from, to, type)
+            .addMark(from, to, type.create(attrs))
+        );
+      }
+      return true;
     }
 
     return pmToggleMark(type, attrs)(state, dispatch);

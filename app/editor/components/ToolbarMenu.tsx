@@ -40,10 +40,29 @@ function ToolbarDropdown(props: ToolbarDropdownProps) {
   const { item, shortcut, tooltip } = props;
   const { state } = view;
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const isActive = item.active ? item.active(state) : false;
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    setIsOpen(open);
-  }, []);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (
+        open &&
+        item.applyOnOpen &&
+        item.name &&
+        commands[item.name] &&
+        !(item.active ? item.active(view.state) : false)
+      ) {
+        closeHistory(view);
+        commands[item.name](
+          typeof item.attrs === "function"
+            ? item.attrs(view.state)
+            : item.attrs
+        );
+        closeHistory(view);
+      }
+      setIsOpen(open);
+    },
+    [commands, item, view]
+  );
 
   const items: TMenuItem[] = useMemo(() => {
     if (!isOpen) {
@@ -53,12 +72,12 @@ function ToolbarDropdown(props: ToolbarDropdownProps) {
     const resolvedItemChildren =
       typeof item.children === "function" ? item.children() : item.children;
     return resolvedItemChildren
-      ? mapMenuItems(resolvedItemChildren, commands, view, state)
+      ? mapMenuItems(resolvedItemChildren, commands, view, view.state)
       : [];
     // Menu items are resolved against the editor state at the moment the menu
     // opens, recomputing on every transaction would rebuild the open menu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, commands]);
+  }, [isOpen, commands, isActive, view]);
 
   const handleCloseAutoFocus = useCallback((ev: Event) => {
     ev.stopImmediatePropagation();

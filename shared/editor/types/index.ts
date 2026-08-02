@@ -61,6 +61,11 @@ export type MenuItem = {
   skipIcon?: boolean;
   disabled?: boolean;
   onClick?: () => void;
+  /**
+   * When true, opening a dropdown menu item runs its command before showing
+   * children (only if the item is not already active).
+   */
+  applyOnOpen?: boolean;
   /** Custom React content to render instead of a standard menu item */
   content?: React.ReactNode;
   /** Condition to check before preventing the submenu from closing */
