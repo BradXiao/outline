@@ -38,6 +38,7 @@ import CollectionFilter from "./components/CollectionFilter";
 import DateFilter from "./components/DateFilter";
 import { DocumentFilter } from "./components/DocumentFilter";
 import DocumentTypeFilter from "./components/DocumentTypeFilter";
+import RecentAccess from "./components/RecentAccess";
 import RecentSearches from "./components/RecentSearches";
 import SearchInput from "./components/SearchInput";
 import { SortInput } from "./components/SortInput";
@@ -433,7 +434,10 @@ function Search() {
             </ModelSelectionProvider>
           </>
         ) : documentId ? null : (
-          <RecentSearches ref={recentSearchesRef} onEscape={handleEscape} />
+          <>
+            <RecentSearches ref={recentSearchesRef} onEscape={handleEscape} />
+            <RecentAccess onEscape={handleEscape} />
+          </>
         )}
       </ResultsWrapper>
     </Scene>

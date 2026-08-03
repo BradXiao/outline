@@ -126,8 +126,22 @@ export const DocumentsDeletedSchema = BaseSchema.extend({
 
 export type DocumentsDeletedReq = z.infer<typeof DocumentsDeletedSchema>;
 
+const DocumentsViewedSortParamsSchema = z.object({
+  /** Specifies the View attributes by which results will be sorted */
+  sort: z
+    .string()
+    .refine((val) => ["createdAt", "updatedAt"].includes(val))
+    .prefault("updatedAt"),
+
+  /** Specifies the sort order with respect to sort field */
+  direction: z
+    .string()
+    .optional()
+    .transform((val) => (val !== "ASC" ? "DESC" : val)),
+});
+
 export const DocumentsViewedSchema = BaseSchema.extend({
-  body: DocumentsSortParamsSchema.extend({}),
+  body: DocumentsViewedSortParamsSchema.extend({}),
 });
 
 export type DocumentsViewedReq = z.infer<typeof DocumentsViewedSchema>;

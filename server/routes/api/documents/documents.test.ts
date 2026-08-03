@@ -2699,6 +2699,87 @@ describe("#documents.viewed", () => {
     expect(res.status).toEqual(401);
     expect(body).toMatchSnapshot();
   });
+
+  it("should return documents sorted by last access time", async () => {
+    const user = await buildUser();
+    const older = await buildDocument({
+      userId: user.id,
+      teamId: user.teamId,
+    });
+    const newer = await buildDocument({
+      userId: user.id,
+      teamId: user.teamId,
+    });
+    const newest = await buildDocument({
+      userId: user.id,
+      teamId: user.teamId,
+    });
+
+    const olderView = await View.incrementOrCreate(createContext({ user }), {
+      documentId: older.id,
+      userId: user.id,
+    });
+    await olderView.update({ updatedAt: new Date("2024-01-01T00:00:00.000Z") });
+
+    const newerView = await View.incrementOrCreate(createContext({ user }), {
+      documentId: newer.id,
+      userId: user.id,
+    });
+    await newerView.update({ updatedAt: new Date("2024-01-02T00:00:00.000Z") });
+
+    const newestView = await View.incrementOrCreate(createContext({ user }), {
+      documentId: newest.id,
+      userId: user.id,
+    });
+    await newestView.update({ updatedAt: new Date("2024-01-03T00:00:00.000Z") });
+
+    const res = await server.post("/api/documents.viewed", user, {
+      body: {
+        sort: "updatedAt",
+        direction: "DESC",
+      },
+    });
+    const body = await res.json();
+    expect(res.status).toEqual(200);
+    expect(body.data.map((doc: { id: string }) => doc.id)).toEqual([
+      newest.id,
+      newer.id,
+      older.id,
+    ]);
+  });
+
+  it("should honor the pagination limit when sorting by last access time", async () => {
+    const user = await buildUser();
+    const documents = [];
+
+    for (let day = 1; day <= 16; day++) {
+      const document = await buildDocument({
+        userId: user.id,
+        teamId: user.teamId,
+      });
+      const view = await View.incrementOrCreate(createContext({ user }), {
+        documentId: document.id,
+        userId: user.id,
+      });
+      await view.update({
+        updatedAt: new Date(`2024-01-${String(day).padStart(2, "0")}T00:00:00.000Z`),
+      });
+      documents.push(document);
+    }
+
+    const res = await server.post("/api/documents.viewed", user, {
+      body: {
+        sort: "updatedAt",
+        direction: "DESC",
+        limit: 15,
+      },
+    });
+    const body = await res.json();
+    expect(res.status).toEqual(200);
+    expect(body.data).toHaveLength(15);
+    expect(body.data[0].id).toEqual(documents[15].id);
+    expect(body.data[14].id).toEqual(documents[1].id);
+  });
 });
 
 describe("#documents.move", () => {

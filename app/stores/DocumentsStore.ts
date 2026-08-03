@@ -402,6 +402,26 @@ export default class DocumentsStore extends Store<Document> {
     options?: PaginationParams
   ): Promise<Document[]> => this.fetchNamedPage("viewed", options);
 
+  /**
+   * Fetches documents the current user accessed most recently.
+   *
+   * @param options optional pagination overrides.
+   * @returns documents ordered by last access time, descending.
+   */
+  @action
+  fetchRecentAccess = async (
+    options?: PaginationParams
+  ): Promise<Document[]> => {
+    const data = await this.fetchNamedPage("viewed", {
+      sort: "updatedAt",
+      direction: "DESC",
+      limit: 20,
+      ...options,
+    });
+
+    return compact(data.map((doc) => this.get(doc.id)));
+  };
+
   @action
   fetchPopular = async (options?: PaginationParams): Promise<Document[]> =>
     this.fetchNamedPage("list", {
