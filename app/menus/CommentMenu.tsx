@@ -1,6 +1,6 @@
 import { observer } from "mobx-react";
 import { EditIcon } from "outline-icons";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type Comment from "~/models/Comment";
 import { DropdownMenu } from "~/components/Menu/DropdownMenu";
@@ -39,18 +39,8 @@ function CommentMenu({
   className,
 }: Props) {
   const { editor } = useDocumentContext();
-  const { documents } = useStores();
   const { t } = useTranslation();
   const can = usePolicy(comment);
-  const document = documents.get(comment.documentId);
-
-  const handleCopyLink = useCallback(() => {
-    if (document) {
-      copy(urlify(commentPath(document, comment)));
-      toast.message(t("Link copied"));
-    }
-  }, [t, document, comment]);
-
   const handleReplaceSuggestions = useCallback(() => {
     if (!comment.suggestions) {
       return false;
@@ -94,7 +84,6 @@ function CommentMenu({
       onEdit,
       onUpdate,
       onDelete,
-      handleCopyLink,
       handleReplaceSuggestions,
     ]
   );
