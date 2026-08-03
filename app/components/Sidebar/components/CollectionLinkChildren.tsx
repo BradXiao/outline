@@ -46,9 +46,8 @@ function CollectionLinkChildren({
   prefetchDocument,
   children,
 }: Props) {
-  // Documents sit one level below the collection, with a minimum that leaves
-  // room for their own disclosure to the left of the label.
-  const childDepth = Math.max(depth + 1, 2);
+  // Documents sit one level below the collection.
+  const childDepth = depth + 1;
   const pageSize = DEFAULT_PAGE_SIZE;
   const { documents, ui } = useStores();
   const { t } = useTranslation();

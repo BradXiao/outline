@@ -3,7 +3,7 @@ import * as React from "react";
 import styled, { useTheme, css } from "styled-components";
 import breakpoint from "styled-components-breakpoint";
 import EventBoundary from "@shared/components/EventBoundary";
-import { ellipsis, hover, s } from "@shared/styles";
+import { ellipsis, s } from "@shared/styles";
 import { isMobile } from "@shared/utils/browser";
 import NudeButton from "~/components/NudeButton";
 import { UnreadBadge } from "~/components/UnreadBadge";
@@ -47,6 +47,12 @@ type Props = Omit<NavLinkProps, "to"> & {
   active?: boolean;
   /** If set, a disclosure will be rendered to the left of any icon */
   expanded?: boolean;
+  /**
+   * Whether to show the disclosure caret when `expanded` is set.
+   * Defaults to true. Set false for collections — the collection icon
+   * already reflects open/closed state.
+   */
+  showDisclosure?: boolean;
   /** Whether this link is the current active drop target for drag and drop */
   isActiveDrop?: boolean;
   /** Whether this link represents a draft document */
@@ -89,6 +95,7 @@ function SidebarLink(
     depth,
     className,
     expanded,
+    showDisclosure = true,
     onDisclosureClick,
     disabled,
     unreadBadge,
@@ -99,15 +106,19 @@ function SidebarLink(
   ref: React.RefObject<HTMLAnchorElement>
 ) {
   const hasDisclosure = expanded !== undefined;
+  const renderDisclosure = hasDisclosure && showDisclosure;
   const { t } = useTranslation();
   const theme = useTheme();
   const { handleMouseEnter, handleMouseLeave } = useClickIntent(onClickIntent);
   const style = React.useMemo(
     () => ({
-      paddingInlineStart: `${(depth || 0) * 16 + (icon ? -8 : 12)}px`,
+      // Reserve the same caret gutter for every row that can show a disclosure
+      // (documents), so icons stay aligned whether or not a caret is present.
+      // Collections pass showDisclosure={false} and use a tighter base.
+      paddingInlineStart: `${(depth || 0) * 16 + (showDisclosure ? 12 : 4)}px`,
       paddingInlineEnd: unreadBadge ? "32px" : undefined,
     }),
-    [depth, icon, unreadBadge]
+    [depth, showDisclosure, unreadBadge]
   );
 
   const unreadStyle = React.useMemo(
@@ -147,15 +158,15 @@ function SidebarLink(
     [onDisclosureClick, hasDisclosure]
   );
 
-  const DisclosureComponent = icon ? HiddenDisclosure : Disclosure;
+  const DisclosureComponent = icon ? InlineDisclosure : Disclosure;
 
   const innerContent = (
     <>
       <ContextMenu action={contextAction} ariaLabel={t("Link options")}>
         <Content>
-          {hasDisclosure && (
+          {renderDisclosure && (
             <DisclosureComponent
-              expanded={expanded}
+              expanded={expanded!}
               onClick={handleDisclosureClick}
               onMouseDown={stopPropagation}
               tabIndex={-1}
@@ -219,16 +230,41 @@ function SidebarLink(
 
 // accounts for whitespace around icon
 export const IconWrapper = styled.span`
-  margin-inline-start: -4px;
   height: 24px;
   overflow: hidden;
   flex-shrink: 0;
   transition: opacity 200ms ease-in-out;
 `;
 
+/** Disclosure in the left gutter — does not shift icon alignment. */
+const InlineDisclosure = styled(Disclosure)`
+  position: absolute;
+  inset-inline-start: -12px;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  transform: translateY(-50%);
+  color: ${s("textTertiary")};
+
+  svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+  }
+
+  &:hover {
+    color: ${s("textSecondary")};
+  }
+`;
+
 const Content = styled.span`
   display: flex;
-  align-items: start;
+  align-items: center;
   position: relative;
   width: 100%;
   min-width: 0;
@@ -264,14 +300,6 @@ const Actions = styled(EventBoundary)<{ $showActions?: boolean }>`
       opacity: 0.75;
     }
   }
-`;
-
-const HiddenDisclosure = styled(Disclosure)`
-  position: inherit;
-  inset-inline-start: initial;
-  display: none;
-  margin-inline-start: -2px;
-  margin-inline-end: 6px;
 `;
 
 const Link = styled(NavLink)<{
@@ -333,18 +361,6 @@ const Link = styled(NavLink)<{
   svg {
     ${(props) => (props.$isActiveDrop ? `fill: ${props.theme.white};` : "")}
     transition: fill 50ms;
-  }
-
-  &: ${hover},
-  &:has([data-state="open"]) {
-    ${HiddenDisclosure} {
-      display: block;
-    }
-    ${HiddenDisclosure} + ${IconWrapper} {
-      visibility: hidden;
-      opacity: 0;
-      width: 0;
-    }
   }
 
   ${breakpoint("tablet")`

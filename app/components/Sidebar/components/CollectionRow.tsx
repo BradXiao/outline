@@ -214,6 +214,7 @@ function CollectionRow({
       onClickIntent={onClickIntent}
       contextAction={contextAction}
       expanded={expanded}
+      showDisclosure={false}
       onDisclosureClick={onDisclosureClick}
       icon={iconElement}
       isActive={isActiveOverride ?? defaultIsActive}
@@ -237,7 +238,7 @@ function CollectionRow({
       {isAddingNewChild && onCreateChild && (
         <SidebarLink
           isActive={() => true}
-          depth={newChildDepth ?? Math.max(depth + 1, 2)}
+          depth={newChildDepth ?? depth + 1}
           ellipsis={false}
           label={
             <EditableTitle

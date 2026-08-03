@@ -232,7 +232,7 @@ const StarredDocumentLink = observer(function StarredDocumentLink({
                     activeDocument={documents.active}
                     prefetchDocument={documents.prefetchDocument}
                     isDraft={node.isDraft}
-                    depth={2}
+                    depth={1}
                     index={index}
                     parentId={document.id}
                   />

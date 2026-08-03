@@ -82,7 +82,7 @@ function ArchiveLink() {
               renderItem={(item) => (
                 <ArchivedCollectionLink
                   key={item.id}
-                  depth={2}
+                  depth={1}
                   collection={item}
                 />
               )}

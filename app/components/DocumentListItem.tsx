@@ -7,7 +7,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { mergeRefs } from "react-merge-refs";
 import { Link } from "react-router-dom";
-import { CheckmarkIcon, DocumentIcon } from "outline-icons";
+import { CheckmarkIcon } from "outline-icons";
 import styled, { css, useTheme } from "styled-components";
 import breakpoint from "styled-components-breakpoint";
 import EventBoundary from "@shared/components/EventBoundary";
@@ -20,6 +20,7 @@ import DocumentMeta from "~/components/DocumentMeta";
 import Flex from "~/components/Flex";
 import Highlight from "~/components/Highlight";
 import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
+import { NestedDocumentsIcon } from "~/components/Icons/NestedDocumentsBadge";
 import NudeButton from "~/components/NudeButton";
 import StarButton, { AnimatedStar } from "~/components/Star";
 import Tooltip from "~/components/Tooltip";
@@ -45,6 +46,8 @@ type Props = {
   showCollection?: boolean;
   showPublished?: boolean;
   showDraft?: boolean;
+  /** Nesting depth when rendering expanded child rows. */
+  depth?: number;
 };
 
 const SEARCH_RESULT_REGEX = /<b\b[^>]*>(.*?)<\/b>/gi;
@@ -61,9 +64,11 @@ function DocumentListItem(
   const { t } = useTranslation();
   const user = useCurrentUser();
   const theme = useTheme();
-  const { userMemberships, groupMemberships } = useStores();
+  const { userMemberships, groupMemberships, collections, documents } =
+    useStores();
   const locationSidebarContext = useLocationSidebarContext();
   const [menuOpen, handleMenuOpen, handleMenuClose] = useBoolean();
+  const [expanded, setExpanded] = React.useState(false);
   const isMobile = useMobile();
   const selection = useModelSelection();
   const iconRef = React.useRef<HTMLDivElement>(null);
@@ -85,6 +90,7 @@ function DocumentListItem(
     showDraft = true,
     highlight,
     context,
+    depth = 0,
     ...rest
   } = props;
   const queryIsInTitle =
@@ -92,7 +98,35 @@ function DocumentListItem(
     !!document.title.toLowerCase().includes(highlight.toLowerCase());
   const canStar = !document.isArchived;
 
-  // Multi-select is only offered for documents the user can update.
+  // Match DocumentMeta: resolve the collection from the store. The document
+  // relation is often unset in list views even when the collection tree is loaded.
+  // Take the max across sources — a collection may exist without its document
+  // tree hydrated yet, while child docs are already in the documents store.
+  const collection = document.collectionId
+    ? collections.get(document.collectionId)
+    : undefined;
+  const nestedDocumentsCount = Math.max(
+    collection?.getChildrenForDocument(document.id).length ?? 0,
+    document.children.length,
+    document.childDocuments.length
+  );
+  const hasChildren = nestedDocumentsCount > 0;
+  const childNodes =
+    collection?.getChildrenForDocument(document.id) ?? document.children;
+
+  const handleToggleChildren = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setExpanded((value) => {
+        if (!value) {
+          void documents.fetchChildDocuments(document.id);
+        }
+        return !value;
+      });
+    },
+    [documents, document.id]
+  );
   const can = usePolicy(document.id);
   const selectable = !!selection && !!can.update;
   const isSelected = selection?.isSelected(document.id) ?? false;
@@ -162,109 +196,135 @@ function DocumentListItem(
         ],
       }}
     >
-      <ContextMenu
-        action={contextMenuAction}
-        ariaLabel={t("Document options")}
-        onOpen={handleMenuOpen}
-        onClose={handleMenuClose}
-      >
-        <DocumentLink
-          ref={mergedRef}
-          dir={document.dir}
-          $isStarred={document.isStarred}
-          $isDragging={isDragging}
-          $menuOpen={menuOpen}
-          $selectable={selectable}
-          to={{
-            pathname: documentPath(document),
-            search: highlight
-              ? `?q=${encodeURIComponent(highlight)}`
-              : undefined,
-            state: {
-              title: document.titleWithDefault,
-              sidebarContext,
-            },
-          }}
-          {...rest}
-          {...rovingTabIndex}
-          onClick={handleLinkClick}
-          onMouseDown={handleLinkMouseDown}
+      <>
+        <ContextMenu
+          action={contextMenuAction}
+          ariaLabel={t("Document options")}
+          onOpen={handleMenuOpen}
+          onClose={handleMenuClose}
         >
-          <Flex gap={4} auto>
-            <IconWrapper ref={iconRef}>
-              {selectable && (
-                <SelectButton
-                  role="checkbox"
-                  aria-checked={isSelected}
-                  aria-label={t("Select")}
-                  $checked={isSelected}
-                  $visible={isSelecting}
-                  tabIndex={-1}
-                >
-                  {isSelected && <CheckmarkIcon size={16} />}
-                </SelectButton>
-              )}
-              <DocumentIconWrapper $dimmed={isSelecting}>
-                {document.icon ? (
-                  <Icon
-                    value={document.icon}
-                    color={document.color ?? undefined}
-                    initial={document.initial}
+          <DocumentLink
+            ref={mergedRef}
+            dir={document.dir}
+            $isStarred={document.isStarred}
+            $isDragging={isDragging}
+            $menuOpen={menuOpen}
+            $selectable={selectable}
+            $depth={depth}
+            to={{
+              pathname: documentPath(document),
+              search: highlight
+                ? `?q=${encodeURIComponent(highlight)}`
+                : undefined,
+              state: {
+                title: document.titleWithDefault,
+                sidebarContext,
+              },
+            }}
+            {...rest}
+            {...rovingTabIndex}
+            onClick={handleLinkClick}
+            onMouseDown={handleLinkMouseDown}
+          >
+            <Flex gap={4} auto>
+              <NestedDocumentsIcon
+                hasChildren={hasChildren}
+                expanded={expanded}
+                onToggle={handleToggleChildren}
+              >
+                <IconWrapper ref={iconRef}>
+                  {selectable && (
+                    <SelectButton
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      aria-label={t("Select")}
+                      $checked={isSelected}
+                      $visible={isSelecting}
+                      tabIndex={-1}
+                    >
+                      {isSelected && <CheckmarkIcon size={16} />}
+                    </SelectButton>
+                  )}
+                  <DocumentIconWrapper $dimmed={isSelecting}>
+                    {document.icon ? (
+                      <Icon
+                        value={document.icon}
+                        color={document.color ?? undefined}
+                        initial={document.initial}
+                      />
+                    ) : (
+                      <DocumentPlaceholderIcon color={theme.textSecondary} />
+                    )}
+                  </DocumentIconWrapper>
+                </IconWrapper>
+              </NestedDocumentsIcon>
+              <Content>
+                <Heading dir={document.dir}>
+                  <Title
+                    text={document.titleWithDefault}
+                    highlight={highlight}
+                    dir={document.dir}
                   />
-                ) : (
-                  <DocumentIcon
-                    outline={document.isDraft}
-                    color={theme.textSecondary}
+                  {document.isBadgedNew &&
+                    document.createdBy?.id !== user.id && (
+                      <Badge yellow>{t("New")}</Badge>
+                    )}
+                  {document.isDraft && showDraft && (
+                    <Tooltip
+                      content={t("Only visible to you")}
+                      placement="top"
+                    >
+                      <Badge>{t("Draft")}</Badge>
+                    </Tooltip>
+                  )}
+                  {canStar && !isMobile && <StarButton document={document} />}
+                </Heading>
+
+                {!queryIsInTitle && (
+                  <ResultContext
+                    text={context}
+                    highlight={highlight ? SEARCH_RESULT_REGEX : undefined}
+                    processResult={replaceResultMarks}
                   />
                 )}
-              </DocumentIconWrapper>
-            </IconWrapper>
-
-
-
-            <Content>
-              <Heading dir={document.dir}>
-                <Title
-                  text={document.titleWithDefault}
-                  highlight={highlight}
-                  dir={document.dir}
+                <DocumentMeta
+                  document={document}
+                  showCollection={showCollection}
+                  showPublished={showPublished}
+                  showParentDocuments={showParentDocuments}
+                  showLastViewed
                 />
-                {document.isBadgedNew && document.createdBy?.id !== user.id && (
-                  <Badge yellow>{t("New")}</Badge>
-                )}
-                {document.isDraft && showDraft && (
-                  <Tooltip content={t("Only visible to you")} placement="top">
-                    <Badge>{t("Draft")}</Badge>
-                  </Tooltip>
-                )}
-                {canStar && !isMobile && <StarButton document={document} />}
-              </Heading>
-
-              {!queryIsInTitle && (
-                <ResultContext
-                  text={context}
-                  highlight={highlight ? SEARCH_RESULT_REGEX : undefined}
-                  processResult={replaceResultMarks}
-                />
-              )}
-              <DocumentMeta
+              </Content>
+            </Flex>
+            <Actions>
+              <DocumentMenu
                 document={document}
+                onOpen={handleMenuOpen}
+                onClose={handleMenuClose}
+              />
+            </Actions>
+          </DocumentLink>
+        </ContextMenu>
+        {expanded &&
+          childNodes.map((node) => {
+            const childDocument = documents.get(node.id);
+            if (!childDocument) {
+              return null;
+            }
+
+            return (
+              <ObservedDocumentListItem
+                key={node.id}
+                document={childDocument}
+                showParentDocuments={showParentDocuments}
                 showCollection={showCollection}
                 showPublished={showPublished}
-                showParentDocuments={showParentDocuments}
-                showLastViewed
+                showDraft={showDraft}
+                depth={depth + 1}
               />
-            </Content>
-          </Flex>
-          <Actions>
-            <DocumentMenu
-              document={document}
-              onOpen={handleMenuOpen}
-              onClose={handleMenuClose}
-            />
-          </Actions>
-        </DocumentLink>
-      </ContextMenu>
+            );
+          })}
+      </>
     </ActionContextProvider>
   );
 }
@@ -279,6 +339,7 @@ const IconWrapper = styled.div`
 `;
 
 const DocumentIconWrapper = styled.span<{ $dimmed: boolean }>`
+  position: relative;
   display: flex;
   transition: opacity 100ms ease;
   opacity: ${(props) => (props.$dimmed ? 0 : 1)};
@@ -342,11 +403,14 @@ const DocumentLink = styled(Link)<{
   $isDragging?: boolean;
   $menuOpen?: boolean;
   $selectable?: boolean;
+  $depth?: number;
 }>`
   display: flex;
   align-items: center;
   margin: 10px -8px;
   padding: 6px 8px;
+  /* Leave a gutter for the disclosure caret so icons stay aligned. */
+  padding-left: ${(props) => 18 + (props.$depth ?? 0) * 24}px;
   border-radius: 8px;
   max-height: 50vh;
   width: calc(100vw - 8px);
@@ -447,4 +511,6 @@ const ResultContext = styled(Highlight)`
   overflow: hidden;
 `;
 
-export default observer(React.forwardRef(DocumentListItem));
+const ObservedDocumentListItem = observer(React.forwardRef(DocumentListItem));
+
+export default ObservedDocumentListItem;
