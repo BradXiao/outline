@@ -81,13 +81,11 @@ router.post(
     const commentId = id || uuidv4();
 
     if (anchored) {
-      if (!document.state) {
-        throw ValidationError("Cannot inline comment on this document");
-      }
+      const docState = DocumentHelper.toState(document);
 
       const updated = anchorText
         ? ProsemirrorHelper.applyCommentMarkByText({
-            docState: document.state,
+            docState,
             anchorText,
             commentId,
             userId: user.id,
@@ -96,7 +94,7 @@ router.post(
           })
         : anchorNodeId
           ? ProsemirrorHelper.applyCommentMarkByNode({
-              docState: document.state,
+              docState,
               anchorNodeId,
               commentId,
               userId: user.id,
