@@ -2,6 +2,7 @@ import type { EditorState, Selection } from "prosemirror-state";
 import Suggestion from "~/editor/extensions/Suggestion";
 import { NodeSelection, TextSelection } from "prosemirror-state";
 import * as React from "react";
+import { unstable_batchedUpdates } from "react-dom";
 
 import filterExcessSeparators from "@shared/editor/lib/filterExcessSeparators";
 import { buildSelectionContext } from "@shared/editor/lib/buildSelectionContext";
@@ -73,6 +74,7 @@ export function SelectionToolbar(props: Props) {
   const isActive = props.isActive || isMobile;
   const { state } = view;
   const [autoFocusLinkInput, setAutoFocusLinkInput] = React.useState(false);
+  const [linkInputFocusRequest, setLinkInputFocusRequest] = React.useState(0);
   const isDragging = useIsDragging(state);
   const { selection } = state;
   const [activeToolbar, setActiveToolbar] = React.useState<Toolbar | null>(
@@ -198,10 +200,17 @@ export function SelectionToolbar(props: Props) {
       ) {
         ev.preventDefault();
         ev.stopPropagation();
-        setAutoFocusLinkInput(true);
-        setActiveToolbar(
-          activeToolbar === Toolbar.Link ? Toolbar.Menu : Toolbar.Link
-        );
+        // This handler runs from a plain addEventListener callback (see
+        // useEventListener), which React 17 does not auto-batch. Without
+        // batching, setAutoFocusLinkInput(true) commits on its own first,
+        // and the reset effect below (which clears autoFocus once the Link
+        // toolbar isn't active yet) fires and undoes it before
+        // setActiveToolbar(Toolbar.Link) ever commits.
+        unstable_batchedUpdates(() => {
+          setAutoFocusLinkInput(true);
+          setLinkInputFocusRequest((request) => request + 1);
+          setActiveToolbar(Toolbar.Link);
+        });
       }
     },
     view.dom,
@@ -255,8 +264,11 @@ export function SelectionToolbar(props: Props) {
 
     if (item.name === "linkOnImage" || item.name === "addLink") {
       item.onClick = () => {
-        setAutoFocusLinkInput(true);
-        setActiveToolbar(Toolbar.Link);
+        unstable_batchedUpdates(() => {
+          setAutoFocusLinkInput(true);
+          setLinkInputFocusRequest((request) => request + 1);
+          setActiveToolbar(Toolbar.Link);
+        });
       };
     }
     return item;
@@ -306,6 +318,7 @@ export function SelectionToolbar(props: Props) {
         <LinkEditor
           key={`link-${selection.anchor}`}
           autoFocus={autoFocusLinkInput}
+          focusRequest={linkInputFocusRequest}
           view={view}
           mark={linkMark ? linkMark.mark : undefined}
           onLinkAdd={() => setActiveToolbar(null)}

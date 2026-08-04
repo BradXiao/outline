@@ -33,6 +33,8 @@ type Props = {
   mark?: Mark;
   view: EditorView;
   autoFocus?: boolean;
+  /** Increments when the input should be focused again while already mounted. */
+  focusRequest?: number;
   onLinkAdd: () => void;
   onLinkUpdate: () => void;
   onLinkRemove: () => void;
@@ -45,6 +47,7 @@ const LinkEditor: React.FC<Props> = ({
   mark,
   view,
   autoFocus,
+  focusRequest = 0,
   onLinkAdd,
   onLinkUpdate,
   onLinkRemove,
@@ -79,6 +82,20 @@ const LinkEditor: React.FC<Props> = ({
       void request();
     }
   }, [trimmedQuery, request]);
+
+  React.useLayoutEffect(() => {
+    if (!autoFocus || !view.editable) {
+      return;
+    }
+
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+    input.select();
+  }, [autoFocus, focusRequest, view.editable]);
 
   useOnClickOutside(wrapperRef, (ev) => {
     // If the link is totally empty or only spaces then remove the mark
