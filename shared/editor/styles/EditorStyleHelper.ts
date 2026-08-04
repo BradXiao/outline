@@ -6,6 +6,12 @@ export class EditorStyleHelper {
 
   static readonly blockRadius = "6px";
 
+  /** Handle shown in the gutter to drag a whole block */
+  static readonly blockDragHandle = "block-drag-handle";
+
+  /** State when the block drag handle is visible */
+  static readonly blockDragHandleVisible = "visible";
+
   // Images
 
   static readonly imageHandle = "image-handle";

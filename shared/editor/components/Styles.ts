@@ -542,6 +542,46 @@ font-size: 1em;
 line-height: -0.011;
 width: 100%;
 
+// Positioning context for the block drag handle, which is rendered as a
+// sibling of the editor so that it can sit outside of the editable DOM.
+position: relative;
+
+.${EditorStyleHelper.blockDragHandle} {
+  background: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iOCIgeT0iNyIgd2lkdGg9IjMiIGhlaWdodD0iMiIgcng9IjEiIGZpbGw9IiM0RTVDNkUiLz4KPHJlY3QgeD0iOCIgeT0iMTEiIHdpZHRoPSIzIiBoZWlnaHQ9IjIiIHJ4PSIxIiBmaWxsPSIjNEU1QzZFIi8+CjxyZWN0IHg9IjgiIHk9IjE1IiB3aWR0aD0iMyIgaGVpZ2h0PSIyIiByeD0iMSIgZmlsbD0iIzRFNUM2RSIvPgo8cmVjdCB4PSIxMyIgeT0iNyIgd2lkdGg9IjMiIGhlaWdodD0iMiIgcng9IjEiIGZpbGw9IiM0RTVDNkUiLz4KPHJlY3QgeD0iMTMiIHk9IjExIiB3aWR0aD0iMyIgaGVpZ2h0PSIyIiByeD0iMSIgZmlsbD0iIzRFNUM2RSIvPgo8cmVjdCB4PSIxMyIgeT0iMTUiIHdpZHRoPSIzIiBoZWlnaHQ9IjIiIHJ4PSIxIiBmaWxsPSIjNEU1QzZFIi8+Cjwvc3ZnPgo=") no-repeat;
+  background-position: center;
+  display: ${props.readOnly ? "none" : "block"};
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 200ms ease-in-out;
+  z-index: 1;
+
+  &.${EditorStyleHelper.blockDragHandleVisible} {
+    opacity: 0.5;
+    pointer-events: all;
+  }
+
+  &.${EditorStyleHelper.blockDragHandleVisible}:${hover} {
+    opacity: 1;
+    background-color: ${props.theme.listItemHoverBackground};
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  @media print {
+    display: none;
+  }
+}
+
 .mention {
   background: ${props.theme.mentionBackground};
   border-radius: 8px;

@@ -1,6 +1,8 @@
+import BlockDragHandle from "../extensions/BlockDragHandle";
 import ColorSwatchPreview from "../extensions/ColorSwatchPreview";
 import DateTime from "../extensions/DateTime";
 import DeleteNearAtom from "../extensions/DeleteNearAtom";
+import DragAutoScroll from "../extensions/DragAutoScroll";
 import History from "../extensions/History";
 import InputRuleUndo from "../extensions/InputRuleUndo";
 import MaxLength from "../extensions/MaxLength";
@@ -75,6 +77,7 @@ export const inlineExtensions: Nodes = [
   HardBreak,
   DeleteNearAtom,
   ColorSwatchPreview,
+  DragAutoScroll,
 ];
 
 export const listExtensions: Nodes = [
@@ -125,6 +128,7 @@ export const richExtensions: Nodes = [
   StepListItem,
   StepList,
   ToggleBlock,
+  BlockDragHandle,
   // Container type nodes should be last so that key handlers are registered for content inside
   // the container nodes first.
   ...listExtensions,
