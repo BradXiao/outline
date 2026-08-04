@@ -215,6 +215,46 @@ const handleEnter =
     return insertNextStep(type, schema)(state, dispatch);
   };
 
+const insertNextStepAlways =
+  (type: NodeType, schema: Schema): Command =>
+  (state, dispatch) => {
+    if (!state.selection.empty) {
+      return false;
+    }
+
+    const step = getStepItem(state, type);
+    const { paragraph } = schema.nodes;
+    if (!step || !paragraph) {
+      return false;
+    }
+
+    const $from = state.selection.$from;
+    const isAtStepStart =
+      $from.parent.type === paragraph &&
+      $from.depth === step.depth + 1 &&
+      $from.before(step.depth + 1) === step.start &&
+      $from.parentOffset === 0;
+
+    if (isAtStepStart) {
+      let tr = state.tr.insert(step.pos, createStepListItem(schema, type));
+      const cursorPos = tr.mapping.map(state.selection.from);
+      tr = tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+
+      dispatch?.(tr.scrollIntoView());
+      return true;
+    }
+
+    const stepEnd = step.pos + step.node.nodeSize;
+    const tr = state.tr.insert(stepEnd, createStepListItem(schema, type));
+
+    dispatch?.(
+      tr
+        .setSelection(TextSelection.create(tr.doc, stepEnd + 2))
+        .scrollIntoView()
+    );
+    return true;
+  };
+
 export default class StepListItem extends Node {
   get name() {
     return "step_list_item";
@@ -256,6 +296,23 @@ export default class StepListItem extends Node {
             const step = getStepItem(view.state, type);
             if (!step) {
               return false;
+            }
+
+            if (
+              event.key === "Enter" &&
+              (event.ctrlKey || event.metaKey) &&
+              !event.shiftKey
+            ) {
+              const handled = insertNextStepAlways(type, view.state.schema)(
+                view.state,
+                view.dispatch
+              );
+
+              if (handled) {
+                event.preventDefault();
+              }
+
+              return handled;
             }
 
             if (event.key === "Enter" && !event.shiftKey) {
@@ -301,6 +358,7 @@ export default class StepListItem extends Node {
     return {
       Enter: handleEnter(type, schema),
       "Shift-Enter": splitWithinStep(type, schema),
+      "Mod-Enter": insertNextStepAlways(type, schema),
     };
   }
 

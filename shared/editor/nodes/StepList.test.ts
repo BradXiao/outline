@@ -50,6 +50,7 @@ function applyCommand(
   command:
     | ReturnType<StepList["commands"]>["step_list"]
     | ReturnType<StepListItem["keys"]>["Enter"]
+    | ReturnType<StepListItem["keys"]>["Mod-Enter"]
 ) {
   let result = state;
   const handled = command(state, (tr) => {
@@ -281,6 +282,135 @@ describe("StepListItem", () => {
     expect(result.doc.firstChild?.child(1).childCount).toBe(1);
     expect(result.selection.$from.parent.type.name).toBe("paragraph");
     expect(result.selection.$from.parentOffset).toBe(0);
+    expect(result.selection.$from.node(-1).type.name).toBe("step_list_item");
+  });
+
+  it("generates a next step on Mod-Enter from a non-empty step title", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    })["Mod-Enter"];
+    let state = createEditorState(doc([step_list.create(null, [step("First")])]));
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" && child.textContent === "First"
+          ) + "First".length
+        )
+      )
+    );
+
+    const { handled, result } = applyCommand(state, command);
+
+    expect(handled).toBe(true);
+    expect(result.doc.firstChild?.childCount).toBe(2);
+    expect(result.doc.firstChild?.child(0).textContent).toBe("First");
+    expect(result.doc.firstChild?.child(1).childCount).toBe(1);
+    expect(result.doc.firstChild?.child(1).firstChild?.content.size).toBe(0);
+    expect(result.selection.$from.parent.type.name).toBe("paragraph");
+    expect(result.selection.$from.parentOffset).toBe(0);
+    expect(result.selection.$from.node(-1).type.name).toBe("step_list_item");
+  });
+
+  it("inserts a step above a blank step title on Mod-Enter, since a blank title is also the line's beginning", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    })["Mod-Enter"];
+    let state = createEditorState(doc([step_list.create(null, [step()])]));
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" && child.content.size === 0
+          )
+        )
+      )
+    );
+
+    const { handled, result } = applyCommand(state, command);
+
+    expect(handled).toBe(true);
+    expect(result.doc.firstChild?.childCount).toBe(2);
+    expect(result.doc.firstChild?.child(1).childCount).toBe(1);
+    expect(result.selection.$from.parentOffset).toBe(0);
+    expect(result.selection.$from.node(-1).type.name).toBe("step_list_item");
+  });
+
+  it("inserts a step above on Mod-Enter at the beginning of a step title", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    })["Mod-Enter"];
+    let state = createEditorState(
+      doc([step_list.create(null, [step("First"), step("Second")])])
+    );
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" &&
+              child.textContent === "Second"
+          )
+        )
+      )
+    );
+
+    const { handled, result } = applyCommand(state, command);
+
+    expect(handled).toBe(true);
+    expect(result.doc.firstChild?.childCount).toBe(3);
+    expect(result.doc.firstChild?.child(0).textContent).toBe("First");
+    expect(result.doc.firstChild?.child(1).childCount).toBe(1);
+    expect(result.doc.firstChild?.child(1).firstChild?.content.size).toBe(0);
+    expect(result.doc.firstChild?.child(2).textContent).toBe("Second");
+    expect(result.selection.$from.parent.textContent).toBe("Second");
+    expect(result.selection.$from.parentOffset).toBe(0);
+    expect(result.selection.$from.node(-1).type.name).toBe("step_list_item");
+  });
+
+  it("generates a next step on Mod-Enter from within step content", () => {
+    const command = new StepListItem().keys({
+      type: step_list_item,
+      schema,
+    })["Mod-Enter"];
+    let state = createEditorState(
+      doc([
+        step_list.create(null, [
+          step_list_item.create(null, [p("First"), p("Content")]),
+        ]),
+      ])
+    );
+    state = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(
+          state.doc,
+          posInsideFirst(
+            state.doc,
+            (child) =>
+              child.type.name === "paragraph" &&
+              child.textContent === "Content"
+          )
+        )
+      )
+    );
+
+    const { handled, result } = applyCommand(state, command);
+
+    expect(handled).toBe(true);
+    expect(result.doc.firstChild?.childCount).toBe(2);
+    expect(result.doc.firstChild?.child(0).childCount).toBe(2);
+    expect(result.doc.firstChild?.child(1).childCount).toBe(1);
     expect(result.selection.$from.node(-1).type.name).toBe("step_list_item");
   });
 });
