@@ -95,7 +95,7 @@ function DataLoader({ match, children }: Props) {
   const isEditRoute =
     match.path === matchDocumentEdit || match.path.startsWith(settingsPath());
   const isEditing = isEditRoute || !user?.separateEditMode;
-  const { isFocused: isPaneFocused } = useSplitView();
+  const { isFocused: isPaneFocused, pane } = useSplitView();
   const can = usePolicy(document);
   const location = useLocation<LocationState>();
   const query = useQuery();
@@ -197,6 +197,24 @@ function DataLoader({ match, children }: Props) {
   }, [ui, document, isPaneFocused]);
 
   React.useEffect(() => {
+    let isCanceled = false;
+
+    async function fetchComments() {
+      const fetchedComments = await comments.fetchAll({
+        documentId: document?.id,
+        limit: 100,
+        direction: "ASC",
+      });
+
+      const hasUnresolvedThreads = fetchedComments.some(
+        (comment) => !comment.parentCommentId && !comment.isResolved
+      );
+
+      if (!isCanceled && hasUnresolvedThreads) {
+        ui.setRightSidebar("comments", pane);
+      }
+    }
+
     if (document) {
       // If we're attempting to update an archived, deleted, or otherwise
       // uneditable document then forward to the canonical read url.
@@ -209,11 +227,7 @@ function DataLoader({ match, children }: Props) {
       // when viewing a public share link
       if (can.read && !document.isDeleted && !revisionId) {
         if (team.commentingEnabled) {
-          void comments.fetchAll({
-            documentId: document.id,
-            limit: 100,
-            direction: "ASC",
-          });
+          void fetchComments();
         }
 
         shares.fetchOne({ documentId: document.id }).catch((err) => {
@@ -223,6 +237,10 @@ function DataLoader({ match, children }: Props) {
         });
       }
     }
+
+    return () => {
+      isCanceled = true;
+    };
   }, [
     can.read,
     can.update,
@@ -233,6 +251,7 @@ function DataLoader({ match, children }: Props) {
     shares,
     revisionId,
     missingPolicy,
+    pane,
   ]);
 
   // Auto-enter presentation mode when ?present=true query param is set
