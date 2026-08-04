@@ -390,6 +390,8 @@ class UiStore {
 
   /**
    * Sets the right sidebar panel displayed in the given split view pane.
+   * Primary pane changes are persisted so a closed panel stays closed across
+   * reloads; the secondary pane is session-only.
    *
    * @param panel the panel to display, or null to close the sidebar.
    * @param pane the split view pane, defaults to the primary pane.
@@ -402,7 +404,7 @@ class UiStore {
     if (pane === "secondary") {
       this.secondaryRightSidebar = panel;
     } else {
-      this.rightSidebar = panel;
+      this.set({ rightSidebar: panel });
     }
   };
 
