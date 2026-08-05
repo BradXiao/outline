@@ -3,12 +3,15 @@ import type { EditorView, Decoration } from "prosemirror-view";
 import type { FunctionComponent } from "react";
 import type Extension from "@shared/editor/lib/Extension";
 import type { ComponentProps } from "@shared/editor/types";
-import type { Editor } from "~/editor";
 import { NodeViewRenderer } from "./NodeViewRenderer";
+
+interface ComponentViewEditor {
+  nodeRenderers: Pick<Set<NodeViewRenderer<ComponentProps>>, "add" | "delete">;
+}
 
 type ComponentViewConstructor = {
   /** The editor instance. */
-  editor: Editor;
+  editor: ComponentViewEditor;
   /** The extension the view belongs to. */
   extension: Extension;
   /** The node that the view is responsible for. */
@@ -25,7 +28,7 @@ export default class ComponentView {
   /** The React component to render. */
   component: FunctionComponent<ComponentProps>;
   /** The editor instance. */
-  editor: Editor;
+  editor: ComponentViewEditor;
   /** The extension the view belongs to. */
   extension: Extension;
   /** The node that the view is responsible for. */
@@ -66,19 +69,27 @@ export default class ComponentView {
     this.decorations = decorations;
     this.node = node;
     this.view = view;
-    this.dom = node.type.spec.inline
+    const dom = node.type.spec.inline
       ? document.createElement("span")
       : document.createElement("div");
+    this.dom = dom;
 
     if (!node.isLeaf) {
-      this.contentDOM = document.createElement(
+      const contentDOM = document.createElement(
         node.type.spec.inline ? "span" : "div"
       );
+      this.contentDOM = contentDOM;
+
+      // ProseMirror expects contentDOM to be part of the node view as soon as
+      // the constructor returns. The React portal may not commit until after
+      // the current event, so mount it in the outer node until the component's
+      // content ref moves it into its final position.
+      dom.appendChild(contentDOM);
     }
 
     this.className = `component-${node.type.name}`;
-    this.dom.classList.add(this.className);
-    this.renderer = new NodeViewRenderer(this.dom, this.component, this.props);
+    dom.classList.add(this.className);
+    this.renderer = new NodeViewRenderer(dom, this.component, this.props);
 
     // Add the renderer to the editor's set of node renderers so that it is included in the React tree.
     this.editor.nodeRenderers.add(this.renderer);

@@ -41,7 +41,7 @@ export default class Emoji extends Extension {
         },
       },
       inline: true,
-      content: "text*",
+      atom: true,
       marks: "",
       group: "inline",
       selectable: false,
