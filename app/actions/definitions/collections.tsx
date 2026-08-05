@@ -181,6 +181,7 @@ export const duplicateCollection = createAction({
 export const importDocument = dialogActionFactory({
   analyticsName: "Import document",
   section: ActiveCollectionSection,
+  width: "640px",
   icon: <ImportIcon />,
   name: (t) => `${t("Import documents")}…`,
   title: (t, { getActiveModel }) => (
