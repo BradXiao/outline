@@ -1,7 +1,7 @@
 import { observer } from "mobx-react";
 import * as React from "react";
 import type { RouteComponentProps, StaticContext } from "react-router";
-import { useHistory, useLocation } from "react-router";
+import { Redirect, useHistory, useLocation } from "react-router";
 import { toError } from "@shared/utils/error";
 import { ProsemirrorDataHelper } from "@shared/utils/ProsemirrorDataHelper";
 import { RevisionHelper } from "@shared/utils/RevisionHelper";
@@ -100,6 +100,11 @@ function DataLoader({ match, children }: Props) {
   const location = useLocation<LocationState>();
   const query = useQuery();
   const missingPolicy = !can || Object.keys(can).length === 0;
+  const isJustCreated = React.useMemo(
+    () => !!document?.isJustCreated,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [document?.id]
+  );
 
   useDocumentSidebar();
 
@@ -151,7 +156,12 @@ function DataLoader({ match, children }: Props) {
 
   React.useEffect(() => {
     async function fetchViews() {
-      if (document?.id && !document?.isDeleted && !revisionId) {
+      if (
+        document?.id &&
+        !document?.isDeleted &&
+        !revisionId &&
+        !isJustCreated
+      ) {
         try {
           await views.fetchPage({
             documentId: document.id,
@@ -162,7 +172,7 @@ function DataLoader({ match, children }: Props) {
       }
     }
     void fetchViews();
-  }, [document?.id, document?.isDeleted, revisionId, views]);
+  }, [document?.id, document?.isDeleted, revisionId, views, isJustCreated]);
 
   const onCreateLink = React.useCallback(
     async (params: Properties<Document>, nested?: boolean) => {
@@ -226,15 +236,19 @@ function DataLoader({ match, children }: Props) {
       // Prevents unauthorized request to load share information for the document
       // when viewing a public share link
       if (can.read && !document.isDeleted && !revisionId) {
-        if (team.commentingEnabled) {
+        if (team.commentingEnabled && !isJustCreated) {
           void fetchComments();
         }
-
-        shares.fetchOne({ documentId: document.id }).catch((err) => {
-          if (!(err instanceof NotFoundError)) {
-            throw err;
-          }
-        });
+  
+        // A newly created document has no share of its own, though it can still inherit one
+        // from a parent.
+        if (!isJustCreated || document.parentDocumentId) {
+          shares.fetchOne({ documentId: document.id }).catch((err) => {
+            if (!(err instanceof NotFoundError)) {
+              throw err;
+            }
+          });
+        }
       }
     }
 
@@ -254,6 +268,7 @@ function DataLoader({ match, children }: Props) {
     pane,
     history,
     ui,
+    isJustCreated,
   ]);
 
   // Auto-enter presentation mode when ?present=true query param is set
@@ -313,6 +328,15 @@ function DataLoader({ match, children }: Props) {
 
   return (
     <>
+      {location.pathname !== canonicalUrl && (
+        <Redirect
+          to={{
+            pathname: canonicalUrl,
+            state: location.state,
+            hash: location.hash,
+          }}
+        />
+      )}
       {!revision && <MarkAsViewed document={document} />}
       <React.Fragment key={canEdit ? "edit" : "read"}>
         {children({
