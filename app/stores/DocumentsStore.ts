@@ -415,7 +415,7 @@ export default class DocumentsStore extends Store<Document> {
     const data = await this.fetchNamedPage("viewed", {
       sort: "updatedAt",
       direction: "DESC",
-      limit: 20,
+      limit: 15,
       ...options,
     });
 
