@@ -1,5 +1,4 @@
 import { observer } from "mobx-react";
-import { v4 as uuidv4 } from "uuid";
 import queryString from "query-string";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -33,7 +32,7 @@ import useStores from "~/hooks/useStores";
 import type { PaginationParams, SearchResult } from "~/types";
 import { preventDefault } from "~/utils/events";
 import { searchPath } from "~/utils/routeHelpers";
-import { decodeURIComponentSafe, isTruthyQueryValue } from "~/utils/urls";
+import { isTruthyQueryValue } from "~/utils/urls";
 import CollectionFilter from "./components/CollectionFilter";
 import DateFilter from "./components/DateFilter";
 import { DocumentFilter } from "./components/DocumentFilter";
@@ -43,6 +42,7 @@ import RecentSearches from "./components/RecentSearches";
 import SearchInput from "./components/SearchInput";
 import { SortInput } from "./components/SortInput";
 import UserFilter from "./components/UserFilter";
+import { parseSearchQuery } from "./utils";
 import { HStack } from "~/components/primitives/HStack";
 import useMobile from "~/hooks/useMobile";
 
@@ -64,11 +64,10 @@ function Search() {
   const recentSearchesRef = React.useRef<HTMLDivElement | null>(null);
 
   // filters
-  const decodedQuery = decodeURIComponentSafe(
+  const { input: inputQuery, query } = parseSearchQuery(
     routeMatch.params.query ?? params.get("q") ?? params.get("query") ?? ""
-  ).trim();
-  const query = decodedQuery !== "" ? decodedQuery : undefined;
-  const [inputValue, setInputValue] = React.useState(query ?? "");
+  );
+  const [inputValue, setInputValue] = React.useState(inputQuery);
   const collectionId = params.get("collectionId") ?? "";
   const userId = params.get("userId") ?? "";
   const documentId = params.get("documentId") ?? undefined;
@@ -130,11 +129,7 @@ function Search() {
     // Add to the searches store so this search can immediately appear in the recent searches list
     // without a flash of loading.
     if (query) {
-      searches.add({
-        id: uuidv4(),
-        query,
-        createdAt: new Date().toISOString(),
-      });
+      searches.addRecent(query);
     }
 
     if (isSearchable) {
@@ -189,8 +184,8 @@ function Search() {
   );
 
   React.useEffect(() => {
-    setInputValue(query ?? "");
-  }, [query]);
+    setInputValue(inputQuery);
+  }, [inputQuery]);
 
   React.useEffect(
     () => () => {
