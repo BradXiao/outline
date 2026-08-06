@@ -32,6 +32,6 @@ export class QueryHelper {
    * @return the pattern, for use in a LIKE or ILIKE comparison value.
    */
   public static likeSubsequence(input: string) {
-    return `%${Array.from(input, QueryHelper.escapeLike).join("%")}%`;
+    return `%${Array.from(input, (char) => QueryHelper.escapeLike(char)).join("%")}%`;
   }
 }
