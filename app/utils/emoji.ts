@@ -1,3 +1,5 @@
+import { FrequencyTracker } from "@shared/utils/FrequencyTracker";
+
 /**
  * Converts an emoji character to a data URL that can be used as an image
  * source.
@@ -39,3 +41,11 @@ export function generateEmojiNameFromFilename(filename: string): string {
 
   return name;
 }
+
+/** Tracks all standard and custom emoji usage in a single ranking. */
+export const allEmojiFrequencies = new FrequencyTracker<string>({
+  key: "icon-state.all-emojis-freq",
+  recentKey: "icon-state.last-used-emoji",
+  track: 30,
+  get: 24,
+});

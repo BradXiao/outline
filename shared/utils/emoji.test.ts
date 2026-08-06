@@ -62,6 +62,70 @@ describe("search", () => {
       true
     );
   });
+
+  it("ranks the most recently used emoji first by default", () => {
+    const results = search({
+      query: "",
+      recentEmoji: "custom-recent",
+      frequentEmojis: ["custom-frequent", "custom-recent"],
+      customEmojis: [
+        {
+          id: "custom-frequent",
+          name: "frequent",
+          createdAt: "2026-08-06T00:00:00.000Z",
+        },
+        {
+          id: "custom-recent",
+          name: "recent",
+          createdAt: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(results.slice(0, 2).map((emoji) => emoji.id)).toEqual([
+      "custom-recent",
+      "custom-frequent",
+    ]);
+  });
+
+  it("ranks frequently used emoji by total usage order by default", () => {
+    const results = search({
+      query: "",
+      frequentEmojis: ["custom-most-used", "custom-less-used"],
+      customEmojis: [
+        { id: "custom-less-used", name: "less_used" },
+        { id: "custom-most-used", name: "most_used" },
+      ],
+    });
+
+    expect(results.slice(0, 2).map((emoji) => emoji.id)).toEqual([
+      "custom-most-used",
+      "custom-less-used",
+    ]);
+  });
+
+  it("ranks unused custom emoji by most recent upload by default", () => {
+    const results = search({
+      query: "",
+      customEmojis: [
+        {
+          id: "custom-older",
+          name: "older",
+          createdAt: "2026-08-01T00:00:00.000Z",
+        },
+        {
+          id: "custom-newer",
+          name: "newer",
+          createdAt: "2026-08-06T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(results.slice(0, 2).map((emoji) => emoji.id)).toEqual([
+      "custom-newer",
+      "custom-older",
+    ]);
+  });
 });
 
 describe("getEmojiId", () => {

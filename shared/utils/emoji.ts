@@ -115,6 +115,12 @@ interface RankedEmoji {
   index: number;
 }
 
+interface EmojiCandidate {
+  emoji: Emoji;
+  terms: SearchTerm[];
+  uploadedAt?: number;
+}
+
 const normalizeSearchTerm = (value: string) =>
   value.toLowerCase().replace(/[_-]+/g, " ").trim();
 
@@ -383,6 +389,57 @@ export const getEmojiVariants = ({ id }: { id: string }) =>
 type CustomEmoji = {
   id: string;
   name: string;
+  createdAt?: string;
+};
+
+const rankDefaultResults = (
+  candidates: EmojiCandidate[],
+  recentEmoji?: string,
+  frequentEmojis: string[] = []
+): Emoji[] => {
+  const frequentRanks = new Map(
+    frequentEmojis.map((value, index) => [value, index])
+  );
+
+  return candidates
+    .map((candidate, index) => ({ candidate, index }))
+    .sort((left, right) => {
+      const leftValue = left.candidate.emoji.value;
+      const rightValue = right.candidate.emoji.value;
+      const leftIsRecent = leftValue === recentEmoji;
+      const rightIsRecent = rightValue === recentEmoji;
+
+      if (leftIsRecent !== rightIsRecent) {
+        return leftIsRecent ? -1 : 1;
+      }
+
+      const leftFrequencyRank = frequentRanks.get(leftValue);
+      const rightFrequencyRank = frequentRanks.get(rightValue);
+      if (leftFrequencyRank !== undefined || rightFrequencyRank !== undefined) {
+        if (leftFrequencyRank === undefined) {
+          return 1;
+        }
+        if (rightFrequencyRank === undefined) {
+          return -1;
+        }
+        return leftFrequencyRank - rightFrequencyRank;
+      }
+
+      const leftUploadedAt = left.candidate.uploadedAt;
+      const rightUploadedAt = right.candidate.uploadedAt;
+      if (leftUploadedAt !== undefined || rightUploadedAt !== undefined) {
+        if (leftUploadedAt === undefined) {
+          return 1;
+        }
+        if (rightUploadedAt === undefined) {
+          return -1;
+        }
+        return rightUploadedAt - leftUploadedAt;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ candidate }) => candidate.emoji);
 };
 
 /**
@@ -395,10 +452,14 @@ export const search = ({
   query,
   skinTone,
   customEmojis = [],
+  recentEmoji,
+  frequentEmojis = [],
 }: {
   query: string;
   skinTone?: EmojiSkinTone;
   customEmojis?: CustomEmoji[];
+  recentEmoji?: string;
+  frequentEmojis?: string[];
 }): Emoji[] => {
   const normalizedQuery = normalizeSearchTerm(query);
   const emojiSkinTone = skinTone ?? EmojiSkinTone.Default;
@@ -421,11 +482,14 @@ export const search = ({
         createSearchTerm(customEmoji.name, 0, true),
         createSearchTerm(customEmoji.id, 5),
       ],
+      uploadedAt: customEmoji.createdAt
+        ? new Date(customEmoji.createdAt).getTime()
+        : 0,
     })),
   ];
 
   if (!normalizedQuery) {
-    return allEmojis.map(({ emoji }) => emoji);
+    return rankDefaultResults(allEmojis, recentEmoji, frequentEmojis);
   }
 
   return allEmojis

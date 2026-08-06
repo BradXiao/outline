@@ -7,6 +7,7 @@ import { EmojiCategory, IconType } from "@shared/types";
 import { getEmojis, getEmojisWithCategory, search } from "@shared/utils/emoji";
 import Flex from "~/components/Flex";
 import { EmojiCreateDialog } from "~/components/EmojiDialog/EmojiCreateDialog";
+import { allEmojiFrequencies } from "~/utils/emoji";
 import { DisplayCategory } from "../utils";
 import type { DataNode, EmojiNode, IconNode } from "./GridTemplate";
 import GridTemplate from "./GridTemplate";
@@ -92,6 +93,7 @@ const EmojiPanel = ({
   const handleEmojiSelection = React.useCallback(
     ({ id, value }: { id: string; value: string }) => {
       onEmojiChange(value);
+      allEmojiFrequencies.track(value);
 
       // Determine if this is a custom emoji by checking if it's in the custom emoji data
       const isCustomEmoji =

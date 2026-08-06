@@ -1,6 +1,6 @@
 import { capitalize } from "es-toolkit/compat";
 import { observer } from "mobx-react";
-import { useCallback, useMemo, useEffect } from "react";
+import { useCallback, useMemo, useEffect, useState } from "react";
 import { emojiMartToGemoji, snakeCase } from "@shared/editor/lib/emoji";
 import { search as emojiSearch } from "@shared/utils/emoji";
 import EmojiMenuItem from "./EmojiMenuItem";
@@ -9,6 +9,7 @@ import SuggestionsMenu from "./SuggestionsMenu";
 import useStores from "~/hooks/useStores";
 import { determineIconType } from "@shared/utils/icon";
 import { IconType } from "@shared/types";
+import { allEmojiFrequencies } from "~/utils/emoji";
 
 type Emoji = {
   name: string;
@@ -26,16 +27,57 @@ type Props = Omit<
 const EmojiMenu = (props: Props) => {
   const { emojis } = useStores();
   const { search = "" } = props;
+  const [recentEmoji, setRecentEmoji] = useState(
+    () => allEmojiFrequencies.recent
+  );
+  const [frequentEmojis, setFrequentEmojis] = useState(
+    () => allEmojiFrequencies.frequent
+  );
 
   useEffect(() => {
+    if (!props.isActive) {
+      return;
+    }
+
     if (search) {
       void emojis.fetchPage({ query: search });
+      return;
     }
-  }, [emojis, search]);
+
+    void emojis.fetchPage();
+  }, [emojis, props.isActive, search]);
+
+  useEffect(() => {
+    if (!props.isActive) {
+      return;
+    }
+
+    const recent = allEmojiFrequencies.recent;
+    const frequent = allEmojiFrequencies.frequent;
+    setRecentEmoji(recent);
+    setFrequentEmojis(frequent);
+
+    const customEmojiIds = new Set(
+      [recent, ...frequent].filter(
+        (value): value is string =>
+          !!value && determineIconType(value) === IconType.Custom
+      )
+    );
+    void Promise.all(
+      Array.from(customEmojiIds).map((id) =>
+        emojis.fetch(id).catch(() => undefined)
+      )
+    );
+  }, [emojis, props.isActive]);
 
   const items = useMemo(
     () =>
-      emojiSearch({ customEmojis: emojis.orderedData, query: search })
+      emojiSearch({
+        customEmojis: emojis.orderedData,
+        query: search,
+        recentEmoji,
+        frequentEmojis,
+      })
         .map((item) => {
           // We snake_case the shortcode for backwards compatability with gemoji to
           // avoid multiple formats being written into documents.
@@ -56,7 +98,12 @@ const EmojiMenu = (props: Props) => {
           };
         })
         .slice(0, 15),
-    [search, emojis.orderedData]
+    [search, emojis.orderedData, frequentEmojis, recentEmoji]
+  );
+
+  const handleSelect = useCallback(
+    (item: Emoji) => allEmojiFrequencies.track(item.emoji),
+    []
   );
 
   const renderMenuItem = useCallback(
@@ -72,6 +119,7 @@ const EmojiMenu = (props: Props) => {
       filterable={false}
       renderMenuItem={renderMenuItem}
       items={items}
+      onSelect={handleSelect}
     />
   );
 };

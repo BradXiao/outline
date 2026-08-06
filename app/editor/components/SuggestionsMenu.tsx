@@ -46,7 +46,7 @@ export type Props<T extends MenuItem = MenuItem> = {
   /** Callback when the menu is closed */
   onClose: (insertNewLine?: boolean) => void;
   /** Optional callback when a suggestion is selected */
-  onSelect?: (item: MenuItem) => void;
+  onSelect?: (item: T) => void;
   embeds?: EmbedDescriptor[];
   renderMenuItem: (
     item: T,
