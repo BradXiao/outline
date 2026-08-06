@@ -413,10 +413,6 @@ router.post(
     authorize(user, "update", document);
 
     if (comment.suggestions && replaceSuggestions) {
-      if (!document.state) {
-        throw ValidationError("Cannot replace text in this document");
-      }
-
       if (!comment.originalText) {
         const commentMarks = ProsemirrorHelper.getComments(
           DocumentHelper.toProsemirror(document)
@@ -426,19 +422,22 @@ router.post(
           null;
       }
 
-      const updatedState = ProsemirrorHelper.replaceCommentAnchorWithText({
-        docState: document.state,
+      const updated = ProsemirrorHelper.replaceCommentAnchorWithText({
+        docState: DocumentHelper.toState(document),
         commentId: comment.id,
         replacementText: comment.suggestions,
       });
 
-      if (!updatedState) {
+      if (!updated) {
         throw ValidationError(
           "Could not replace the comment anchor with suggestions"
         );
       }
 
-      await document.updateWithCtx(ctx, { state: updatedState });
+      await document.updateWithCtx(ctx, {
+        state: updated.state,
+        content: updated.content,
+      });
     }
 
     comment.resolve(user);

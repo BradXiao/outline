@@ -110,7 +110,9 @@ describe("documentDuplicator", () => {
     );
 
     await collection.reload();
-    const duplicate = collection.documentStructure![0];
+    // New root documents are appended after existing ones by default, so the
+    // duplicate lands after "original" rather than at the top of the structure.
+    const duplicate = collection.documentStructure![1];
     const childTitles = duplicate.children!.map((child) => child.title);
 
     expect(duplicate.title).toEqual("duplicate");

@@ -1126,6 +1126,7 @@ describe("#documents.list", () => {
       collectionId: collection.id,
     });
     await collection.reload();
+    await collection.removeDocumentInStructure(anotherDoc);
     await collection.addDocumentToStructure(anotherDoc, 0);
     const res = await server.post("/api/documents.list", user, {
       body: {

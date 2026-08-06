@@ -1603,16 +1603,17 @@ describe("ProsemirrorHelper", () => {
         replacementText: "brisk change",
       });
 
-      expect(result).toBeInstanceOf(Uint8Array);
+      expect(result?.state).toBeInstanceOf(Uint8Array);
 
       const ydoc = new Y.Doc();
-      Y.applyUpdate(ydoc, result!);
+      Y.applyUpdate(ydoc, result!.state);
       const doc = Node.fromJSON(schema, yDocToProsemirrorJSON(ydoc, "default"));
 
       expect(doc.textBetween(0, doc.content.size)).toEqual(
         "The quick brisk change jumps"
       );
-      expect(getCommentMarks(result!)).toHaveLength(0);
+      expect(getCommentMarks(result!.state)).toHaveLength(0);
+      expect(result?.content).toEqual(doc.toJSON());
     });
 
     it("anchors a comment to a substring within a single paragraph", () => {

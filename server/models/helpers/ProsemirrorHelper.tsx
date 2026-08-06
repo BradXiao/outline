@@ -1279,7 +1279,7 @@ export class ProsemirrorHelper extends SharedProsemirrorHelper {
    * @param params.docState The current Yjs document state.
    * @param params.commentId The comment identifier whose anchor should be replaced.
    * @param params.replacementText The plain text replacement.
-   * @returns Updated Yjs state, or null if the replacement cannot be applied.
+   * @returns Updated Yjs state and content, or null if the replacement cannot be applied.
    * @throws ValidationError when the comment anchor is not found in the document.
    */
   static replaceCommentAnchorWithText({
@@ -1290,7 +1290,7 @@ export class ProsemirrorHelper extends SharedProsemirrorHelper {
     docState: Uint8Array;
     commentId: string;
     replacementText: string;
-  }): Buffer | null {
+  }): { state: Buffer; content: ProsemirrorData } | null {
     const yjsDoc = new Y.Doc();
     Y.applyUpdate(yjsDoc, docState);
     const doc = Node.fromJSON(schema, yDocToProsemirrorJSON(yjsDoc, "default"));
@@ -1330,16 +1330,8 @@ export class ProsemirrorHelper extends SharedProsemirrorHelper {
       const transformedState = initialState.apply(
         initialState.tr.insertText(replacementText, from, to)
       );
-      const yFragment = yjsDoc.get("default", Y.XmlFragment) as Y.XmlFragment;
-      if (!yFragment.doc) {
-        throw new Error("yFragment.doc not found");
-      }
-      updateYFragment(yFragment.doc, yFragment, transformedState.doc, {
-        mapping: new Map(),
-        isOMark: new Map(),
-      });
 
-      return Buffer.from(Y.encodeStateAsUpdate(yjsDoc));
+      return ProsemirrorHelper.applyDocToYDoc(yjsDoc, transformedState.doc);
     } catch (error) {
       Logger.error("Error replacing comment anchor with text", error as Error);
       return null;
