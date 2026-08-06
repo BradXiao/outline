@@ -13,6 +13,7 @@ import Storage from "../../utils/Storage";
 import backspaceToParagraph from "../commands/backspaceToParagraph";
 import splitHeading from "../commands/splitHeading";
 import toggleBlockType from "../commands/toggleBlockType";
+import { HEADING_LINK_CLIPBOARD_FORMAT } from "../lib/clipboard";
 import { headingToPersistenceKey } from "../lib/headingToSlug";
 import type { MarkdownSerializerState } from "../lib/markdown/serializer";
 import { findCollapsedNodes } from "../queries/findCollapsedNodes";
@@ -166,29 +167,41 @@ export default class Heading extends Node<HeadingOptions> {
 
         const hash = `#${anchor.id}`;
 
-    // the existing url might contain a hash already, lets make sure to remove
-    // that rather than appending another one, along with any /edit suffix.
-    const normalizedUrl = removeUrlPathSuffix(
-      removeUrlFragment(window.location.href),
-      "/edit"
-    );
-    try {
-  
-    // Heading text without the injected "#" anchor button.
-    const clone = heading.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll(".heading-anchor").forEach((el) => el.remove());
-    const headingText = clone.textContent?.trim() ?? "";
+        // the existing url might contain a hash already, lets make sure to remove
+        // that rather than appending another one, along with any /edit suffix.
+        const normalizedUrl = removeUrlPathSuffix(
+            removeUrlFragment(window.location.href),
+            "/edit"
+        );
+        const url = `${normalizedUrl}${hash}`;
 
-    copy(`[📃${headingText}](${normalizedUrl}${hash})`);
-          this.editor.props.onNotice?.(t("Link copied to clipboard"));
-    } catch (_err) {
-      // Some browser contexts disable the prompt() fallback used by
-      // copy-to-clipboard, causing it to throw – surface it rather than crash.
-      this.editor.props.onNotice?.(
-        t("Sorry, the link could not be copied"),
-        "error"
-      );
-    }
+        // Heading text without the injected "#" anchor button.
+        const clone = heading.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll(".heading-anchor").forEach((el) => el.remove());
+        const headingText = clone.textContent?.trim() ?? "";
+
+        try {
+            copy(url, {
+                format: "text/plain",
+                onCopy: (clipboardData) => {
+                    const setData = Reflect.get(clipboardData, "setData");
+                    if (typeof setData === "function") {
+                        Reflect.apply(setData, clipboardData, [
+                            HEADING_LINK_CLIPBOARD_FORMAT,
+                            headingText,
+                        ]);
+                    }
+                },
+            });
+            this.editor.props.onNotice?.(t("Link copied to clipboard"));
+        } catch (_err) {
+            // Some browser contexts disable the prompt() fallback used by
+            // copy-to-clipboard, causing it to throw – surface it rather than crash.
+            this.editor.props.onNotice?.(
+                t("Sorry, the link could not be copied"),
+                "error"
+            );
+        }
     };
 
     keys({ type, schema }: { type: NodeType; schema: Schema }) {

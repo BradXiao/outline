@@ -8,6 +8,7 @@ import { Plugin, PluginKey, TextSelection } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import type { WidgetProps } from "@shared/editor/lib/Extension";
 import Extension from "@shared/editor/lib/Extension";
+import { HEADING_LINK_CLIPBOARD_FORMAT } from "@shared/editor/lib/clipboard";
 import { codeLanguages } from "@shared/editor/lib/code";
 import isMarkdown from "@shared/editor/lib/isMarkdown";
 import normalizePastedMarkdown from "@shared/editor/lib/markdown/normalize";
@@ -88,6 +89,10 @@ export default class PasteHandler extends Extension {
               return true;
             }
 
+            const headingLabel = this.shiftKey
+              ? ""
+              : event.clipboardData.getData(HEADING_LINK_CLIPBOARD_FORMAT);
+
             // Because VSCode is an especially popular editor that places metadata
             // on the clipboard, we can parse it to find out what kind of content
             // was pasted.
@@ -165,7 +170,8 @@ export default class PasteHandler extends Extension {
                                 state.schema.nodes.mention.create({
                                   type: MentionType.Document,
                                   modelId: document.id,
-                                  label: document.titleWithDefault,
+                                  label:
+                                    headingLabel || document.titleWithDefault,
                                   id: uuidv4(),
                                   anchorId: trimmedHash.length
                                     ? trimmedHash
@@ -179,9 +185,11 @@ export default class PasteHandler extends Extension {
                               determineIconType(document.icon) ===
                               IconType.Emoji;
 
-                            const title = `${hasEmoji ? document.icon + " " : ""}${
-                              document.titleWithDefault
-                            }`;
+                            const title =
+                              headingLabel ||
+                              `${hasEmoji ? document.icon + " " : ""}${
+                                document.titleWithDefault
+                              }`;
 
                             this.insertLink(`${document.path}${hash}`, title);
                           }

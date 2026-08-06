@@ -3,6 +3,7 @@ import {
   DocumentIcon,
   EmailIcon,
   CollectionIcon,
+  HashtagIcon,
   WarningIcon,
 } from "outline-icons";
 import type { Node } from "prosemirror-model";
@@ -125,7 +126,9 @@ export const MentionDocument = observer(function MentionDocument_(
       })}
       to={anchorId ? `${documentPath}#${anchorId}` : documentPath}
     >
-      {doc?.icon ? (
+      {anchorId ? (
+        <HashtagIcon size={18} />
+      ) : doc?.icon ? (
         <Icon
           value={doc.icon}
           initial={doc.initial}
@@ -135,7 +138,7 @@ export const MentionDocument = observer(function MentionDocument_(
       ) : (
         <DocumentIcon size={18} />
       )}
-      {doc?.title || node.attrs.label}
+      {anchorId ? node.attrs.label : doc?.title || node.attrs.label}
     </Link>
   );
 });
