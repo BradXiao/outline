@@ -16,9 +16,85 @@
   <a href="https://translate.getoutline.com/project/outline" alt="Localized"><img src="https://badges.crowdin.net/outline/localized.svg"></a>
 </p>
 
+> [!NOTE]
+> This repository is an unofficial modified fork of Outline. It is not affiliated with or endorsed by General Outline, Inc. The Outline-derived portions are licensed under the Business Source License 1.1. See [LICENSE](LICENSE).
+
 This is the source code that runs [**Outline**](https://www.getoutline.com) and all the associated services. If you want to use Outline then you don't need to run this code, A hosted version of the app is offered at [getoutline.com](https://www.getoutline.com). You can also find documentation on using Outline in [our guide](https://docs.getoutline.com/s/guide).
 
 If you'd like to run your own copy of Outline or contribute to development then this is the place for you.
+
+# Highlights
+
+> [!TIP]
+> This section lists features that differ from the official Outline repository.
+
+### Code blocks
+
+- Language icon, custom title, starting line number, highlights, and line jumps
+    - `hl:5` highlights line 5
+    - `ln:2` starts line numbers at 2
+- Wrapped text and line numbers can coexist
+- Insert a code block with a language shortcut
+    - Type ` ```py ` and press space to insert a Python code block
+
+<img width="800" alt="Code blocks" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/01.png">
+
+### Step lists
+
+- Enhanced ordered lists (step lists)
+
+<img width="800" alt="Step lists" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/02.png">
+
+### Sidebar
+
+- Default icon when none is set
+- Caret on documents with nested children
+- New documents are added at the bottom
+
+<img width="250" alt="Sidebar" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/03.png">
+
+### Documents
+
+- Restore last cursor position when reopening
+- Headings, quote blocks, notice blocks, toggle blocks, tables, and code blocks are draggable
+
+<img width="800" alt="Documents" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/04.png">
+
+### Search
+
+- Recent access history
+
+<img width="800" alt="Search" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/05.png">
+
+### Notices
+
+- Fit-content style
+- Two new notice types
+
+<img width="800" alt="Notices" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/06.png">
+
+### MCP
+
+- `create_comment_on_text`
+- `create_suggestions`
+    - Agents can leave suggestions that apply in one click
+
+<img width="800" alt="MCP suggestions" src="https://raw.githubusercontent.com/BradXiao/outline/refs/heads/static/public/images/07.png">
+
+### Headings
+
+- Headings remain foldable
+- Pasted heading links convert to the new formatting
+    - `[📃How to install Git](https://your.outline/doc/git-OVNxuUH3Rq#h-how-to-install-git)`
+
+### Tasks
+
+- New **in progress** state
+
+### Context menu
+
+- `Open in new window`
+- Grouped menu items
 
 # Installation
 
