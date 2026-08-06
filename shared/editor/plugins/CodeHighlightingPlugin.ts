@@ -2,7 +2,6 @@ import { flattenDeep } from "es-toolkit/compat";
 import type { Node } from "prosemirror-model";
 import type { Selection, Transaction } from "prosemirror-state";
 import { Plugin, PluginKey } from "prosemirror-state";
-import type { EditorView } from "prosemirror-view";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import type refractorType from "refractor/core";
 import { getLoaderForLanguage, getRefractorLangForLanguage } from "../lib/code";
@@ -131,105 +130,6 @@ async function loadLanguage(language: string) {
     });
 
   return languagePromises[language];
-}
-
-function getLineHeight(element: HTMLElement): number {
-  const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
-
-  if (Number.isFinite(lineHeight)) {
-    return lineHeight;
-  }
-
-  return 20;
-}
-
-function clearCodeLineHighlightOverlays(root: HTMLElement) {
-  root
-    .querySelectorAll(`.`)
-    .forEach((element) => element.remove());
-}
-
-function syncCodeLineHighlightOverlays(view: EditorView, name: string) {
-  if (!(view.dom instanceof HTMLElement)) {
-    return;
-  }
-
-  clearCodeLineHighlightOverlays(view.dom);
-
-  const blocks: { node: Node; pos: number }[] = findBlockNodes(
-    view.state.doc,
-    true,
-  ).filter((item) => item.node.type.name === name);
-
-  blocks.forEach((block) => {
-    const highlightSpecs = parseCodeFenceHighlight(block.node.attrs.hl ?? null);
-
-    if (!highlightSpecs.length) {
-      return;
-    }
-
-    const blockElement = view.nodeDOM(block.pos);
-    if (!(blockElement instanceof HTMLElement)) {
-      return;
-    }
-
-    const pre = blockElement.querySelector("pre");
-    if (!(pre instanceof HTMLElement)) {
-      return;
-    }
-
-    const preStyles = getComputedStyle(pre);
-    const preRect = pre.getBoundingClientRect();
-    const borderTop = Number.parseFloat(preStyles.borderTopWidth) || 0;
-    const lineHeight = getLineHeight(pre);
-    const text = block.node.textContent;
-    let lineNumber = 1;
-    let linePos = block.pos + 1;
-
-    for (let i = 0; i <= text.length; i++) {
-      const atNewline = text[i] === "\n";
-      if (!atNewline && i < text.length) {
-        continue;
-      }
-
-      const lineEnd = block.pos + 1 + i;
-      const lineText = text.slice(linePos - block.pos - 1, i);
-      const highlighted = isLineHighlighted(
-        highlightSpecs,
-        lineNumber,
-        lineText,
-      );
-
-      if (highlighted) {
-        try {
-          const startCoords = view.coordsAtPos(linePos);
-          const endCoords = view.coordsAtPos(lineEnd);
-          const top = Math.max(
-            0,
-            startCoords.top - preRect.top + pre.scrollTop - borderTop,
-          );
-          const height = Math.max(
-            lineHeight,
-            endCoords.bottom - startCoords.top,
-          );
-          const highlight = document.createElement("div");
-
-          highlight.className = EditorStyleHelper.codeLineHighlight;
-          highlight.contentEditable = "false";
-          highlight.style.top = `px`;
-          highlight.style.height = `px`;
-          pre.insertBefore(highlight, pre.firstChild);
-        } catch {
-          // The editor view may not have DOM coordinates for a block while it is
-          // being mounted or unmounted. It will be measured again on the next
-          // view update.
-        }
-      }
-
-      lineNumber += 1;
-      linePos = atNewline ? lineEnd + 1 : lineEnd;
-    }
-  });
 }
 
 function getDecorations({

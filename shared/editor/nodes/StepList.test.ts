@@ -1,4 +1,5 @@
 import type { Node as ProsemirrorNode } from "prosemirror-model";
+import type { Command } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 import {
   createEditorState,
@@ -8,7 +9,6 @@ import {
   schema,
 } from "@shared/test/editor";
 import StepList from "./StepList";
-import stepListRule from "../rules/stepList";
 import StepListItem from "./StepListItem";
 
 const { step_list, step_list_item, step_list_subtitle } = schema.nodes;
@@ -47,10 +47,7 @@ function posInsideFirst(
 
 function applyCommand(
   state: ReturnType<typeof createEditorState>,
-  command:
-    | ReturnType<StepList["commands"]>["step_list"]
-    | ReturnType<StepListItem["keys"]>["Enter"]
-    | ReturnType<StepListItem["keys"]>["Mod-Enter"]
+  command: ReturnType<StepList["commands"]>["step_list"] | Command
 ) {
   let result = state;
   const handled = command(state, (tr) => {

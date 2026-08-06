@@ -252,6 +252,8 @@ function DataLoader({ match, children }: Props) {
     revisionId,
     missingPolicy,
     pane,
+    history,
+    ui,
   ]);
 
   // Auto-enter presentation mode when ?present=true query param is set

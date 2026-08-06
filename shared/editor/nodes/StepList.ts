@@ -26,8 +26,9 @@ const createStepListItem = (schema: Schema) => {
     : step_list_item.create();
 };
 
-const insertStepList = (type: NodeType, schema: Schema): Command => {
-  return (state, dispatch) => {
+const insertStepList =
+  (type: NodeType, schema: Schema): Command =>
+  (state, dispatch) => {
     const step = createStepListItem(schema);
 
     if (!step) {
@@ -44,7 +45,6 @@ const insertStepList = (type: NodeType, schema: Schema): Command => {
     );
     return true;
   };
-};
 
 export default class StepList extends Node {
   get name() {
