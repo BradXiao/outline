@@ -30,6 +30,7 @@ import { MouseSafeArea } from "~/components/MouseSafeArea";
 import Scrollable from "~/components/Scrollable";
 import useMobile from "~/hooks/useMobile";
 import Logger from "~/utils/Logger";
+import { isRenderableSuggestion } from "../isRenderableSuggestion";
 import { useEditor } from "./EditorContext";
 import Input from "./Input";
 import { MenuHeader } from "~/components/primitives/components/Menu";
@@ -46,7 +47,7 @@ export type Props<T extends MenuItem = MenuItem> = {
   /** Callback when the menu is closed */
   onClose: (insertNewLine?: boolean) => void;
   /** Optional callback when a suggestion is selected */
-  onSelect?: (item: T) => void;
+  onSelect?: (item: MenuItem) => void;
   embeds?: EmbedDescriptor[];
   renderMenuItem: (
     item: T,
@@ -577,6 +578,10 @@ function SuggestionsMenu<T extends MenuItem>(props: Props<T>) {
         return true;
       }
 
+      if (!isRenderableSuggestion(item)) {
+        return false;
+      }
+
       if (fullyFlattenedParents.has(item)) {
         return false;
       }
@@ -646,7 +651,9 @@ function SuggestionsMenu<T extends MenuItem>(props: Props<T>) {
       }
 
       const normalized = filterExcessSeparators(
-        children.filter((child) => child.visible !== false)
+        children.filter(
+          (child) => child.visible !== false && isRenderableSuggestion(child)
+        )
       );
       const firstSelectable = normalized.findIndex(
         (child) =>
