@@ -13,6 +13,10 @@ export const SearchesDeleteSchema = BaseSchema.extend({
 
 export type SearchesDeleteReq = z.infer<typeof SearchesDeleteSchema>;
 
+export const SearchesDeleteAllSchema = BaseSchema;
+
+export type SearchesDeleteAllReq = z.infer<typeof SearchesDeleteAllSchema>;
+
 export const SearchesUpdateSchema = BaseSchema.extend({
   body: z.object({
     id: z.uuid(),

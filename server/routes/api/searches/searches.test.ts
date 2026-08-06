@@ -164,3 +164,70 @@ describe("#searches.delete", () => {
     expect(searchQueries).toHaveLength(0);
   });
 });
+
+describe("#searches.deleteAll", () => {
+  it("deletes only app searches belonging to the current user", async () => {
+    const user = await buildUser();
+    const otherUser = await buildUser({ teamId: user.teamId });
+
+    await Promise.all([
+      buildSearchQuery({
+        userId: user.id,
+        teamId: user.teamId,
+        query: "first app search",
+      }),
+      buildSearchQuery({
+        userId: user.id,
+        teamId: user.teamId,
+        query: "second app search",
+      }),
+      buildSearchQuery({
+        userId: user.id,
+        teamId: user.teamId,
+        query: "api search",
+        source: SearchQuerySource.API,
+      }),
+      buildSearchQuery({
+        userId: otherUser.id,
+        teamId: user.teamId,
+        query: "another user's search",
+      }),
+    ]);
+
+    const res = await server.post("/api/searches.deleteAll", user);
+    const body = await res.json();
+
+    expect(res.status).toEqual(200);
+    expect(body.success).toEqual(true);
+    expect(
+      await SearchQuery.count({
+        where: {
+          userId: user.id,
+          source: SearchQuerySource.App,
+        },
+      })
+    ).toEqual(0);
+    expect(
+      await SearchQuery.count({
+        where: {
+          userId: user.id,
+          source: SearchQuerySource.API,
+        },
+      })
+    ).toEqual(1);
+    expect(
+      await SearchQuery.count({
+        where: {
+          userId: otherUser.id,
+          source: SearchQuerySource.App,
+        },
+      })
+    ).toEqual(1);
+  });
+
+  it("requires authentication", async () => {
+    const res = await server.post("/api/searches.deleteAll");
+
+    expect(res.status).toEqual(401);
+  });
+});

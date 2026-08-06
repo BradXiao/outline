@@ -3,6 +3,7 @@ import auth from "@server/middlewares/authentication";
 import { transaction } from "@server/middlewares/transaction";
 import validate from "@server/middlewares/validate";
 import { SearchQuery } from "@server/models";
+import { SearchQuerySource } from "@server/models/SearchQuery";
 import { presentSearchQuery } from "@server/presenters";
 import type { APIContext } from "@server/types";
 import pagination from "../middlewares/pagination";
@@ -78,6 +79,26 @@ router.post(
       where: {
         ...(id ? { id } : { query }),
         userId: user.id,
+      },
+    });
+
+    ctx.body = {
+      success: true,
+    };
+  }
+);
+
+router.post(
+  "searches.deleteAll",
+  auth(),
+  validate(T.SearchesDeleteAllSchema),
+  async (ctx: APIContext<T.SearchesDeleteAllReq>) => {
+    const { user } = ctx.state.auth;
+
+    await SearchQuery.destroy({
+      where: {
+        userId: user.id,
+        source: SearchQuerySource.App,
       },
     });
 

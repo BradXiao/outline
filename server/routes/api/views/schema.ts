@@ -21,3 +21,7 @@ export const ViewsCreateSchema = BaseSchema.extend({
 });
 
 export type ViewsCreateReq = z.infer<typeof ViewsCreateSchema>;
+
+export const ViewsDeleteAllSchema = BaseSchema;
+
+export type ViewsDeleteAllReq = z.infer<typeof ViewsDeleteAllSchema>;

@@ -66,4 +66,23 @@ router.post(
   }
 );
 
+router.post(
+  "views.deleteAll",
+  auth(),
+  validate(T.ViewsDeleteAllSchema),
+  async (ctx: APIContext<T.ViewsDeleteAllReq>) => {
+    const { user } = ctx.state.auth;
+
+    await View.destroy({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    ctx.body = {
+      success: true,
+    };
+  }
+);
+
 export default router;

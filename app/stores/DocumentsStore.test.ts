@@ -55,4 +55,30 @@ describe("DocumentsStore#fetchRecentAccess", () => {
 
     expect(results).toEqual([]);
   });
+
+  it("clears recent access from the server and cached documents", async () => {
+    const recentlyViewed = stores.documents.add({
+      id: "doc-recent",
+      title: "Recent",
+      url: "/doc/recent",
+      createdAt: "2024-01-02T00:00:00.000Z",
+      updatedAt: "2024-01-02T00:00:00.000Z",
+      lastViewedAt: "2024-01-03T00:00:00.000Z",
+    });
+    const notViewed = stores.documents.add({
+      id: "doc-not-viewed",
+      title: "Not viewed",
+      url: "/doc/not-viewed",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+    vi.mocked(client.post).mockResolvedValueOnce({ success: true });
+
+    await stores.documents.clearRecentAccess();
+
+    expect(client.post).toHaveBeenCalledWith("/views.deleteAll");
+    expect(recentlyViewed.lastViewedAt).toBeUndefined();
+    expect(stores.documents.recentlyViewed).toEqual([]);
+    expect(stores.documents.get(notViewed.id)).toBe(notViewed);
+  });
 });

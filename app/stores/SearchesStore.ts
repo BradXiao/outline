@@ -1,7 +1,8 @@
 import { uniqBy } from "es-toolkit/compat";
-import { computed } from "mobx";
+import { action, computed } from "mobx";
 import { v4 as uuidv4 } from "uuid";
 import SearchQuery from "~/models/SearchQuery";
+import { client } from "~/utils/ApiClient";
 import type RootStore from "./RootStore";
 import Store, { RPCAction } from "./base/Store";
 
@@ -33,4 +34,21 @@ export default class SearchesStore extends Store<SearchQuery> {
       .filter((search) => search.source === "app")
       .slice(0, 8);
   }
+
+  /**
+   * Clears all recent searches made in the app.
+   *
+   * @returns a promise that resolves when the searches have been cleared.
+   */
+  @action
+  clearRecent = async (): Promise<void> => {
+    this.isSaving = true;
+
+    try {
+      await client.post("/searches.deleteAll");
+      this.removeAll((search) => search.source === "app");
+    } finally {
+      this.isSaving = false;
+    }
+  };
 }

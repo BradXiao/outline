@@ -422,6 +422,20 @@ export default class DocumentsStore extends Store<Document> {
     return compact(data.map((doc) => this.get(doc.id)));
   };
 
+  /**
+   * Clears the current user's recent document access history.
+   *
+   * @returns a promise that resolves when the history has been cleared.
+   */
+  @action
+  clearRecentAccess = async (): Promise<void> => {
+    await client.post("/views.deleteAll");
+
+    this.recentlyViewed.forEach((document) => {
+      document.lastViewedAt = undefined;
+    });
+  };
+
   @action
   fetchPopular = async (options?: PaginationParams): Promise<Document[]> =>
     this.fetchNamedPage("list", {

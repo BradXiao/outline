@@ -185,3 +185,40 @@ describe("#views.create", () => {
     expect(res.status).toEqual(403);
   });
 });
+
+describe("#views.deleteAll", () => {
+  it("deletes only views belonging to the current user", async () => {
+    const team = await buildTeam();
+    const user = await buildUser({ teamId: team.id });
+    const otherUser = await buildUser({ teamId: team.id });
+    const document = await buildDocument({
+      userId: user.id,
+      teamId: team.id,
+    });
+
+    await Promise.all([
+      View.incrementOrCreate(createContext({ user }), {
+        documentId: document.id,
+        userId: user.id,
+      }),
+      View.incrementOrCreate(createContext({ user: otherUser }), {
+        documentId: document.id,
+        userId: otherUser.id,
+      }),
+    ]);
+
+    const res = await server.post("/api/views.deleteAll", user);
+    const body = await res.json();
+
+    expect(res.status).toEqual(200);
+    expect(body.success).toEqual(true);
+    expect(await View.count({ where: { userId: user.id } })).toEqual(0);
+    expect(await View.count({ where: { userId: otherUser.id } })).toEqual(1);
+  });
+
+  it("requires authentication", async () => {
+    const res = await server.post("/api/views.deleteAll");
+
+    expect(res.status).toEqual(401);
+  });
+});
