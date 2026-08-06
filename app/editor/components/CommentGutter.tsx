@@ -260,17 +260,19 @@ export const CommentGutter = observer(function CommentGutter({
       }
     }
 
-    const mutationObserver =
-      grid &&
-      new MutationObserver(() => {
-        for (const child of Array.from(grid.children)) {
-          if (child instanceof HTMLElement) {
-            resizeObserver.observe(child);
+    const mutationObserver = grid
+      ? new MutationObserver(() => {
+          for (const child of Array.from(grid.children)) {
+            if (child instanceof HTMLElement) {
+              resizeObserver.observe(child);
+            }
           }
-        }
-        updatePosition();
-      });
-    mutationObserver?.observe(grid, { childList: true });
+          updatePosition();
+        })
+      : undefined;
+    if (grid) {
+      mutationObserver?.observe(grid, { childList: true });
+    }
 
     // Capture phase so nested scroll containers (tables, code) are covered.
     window.addEventListener("scroll", updatePosition, {

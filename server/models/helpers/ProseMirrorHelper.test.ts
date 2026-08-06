@@ -1598,7 +1598,7 @@ describe("ProsemirrorHelper", () => {
       });
 
       const result = ProsemirrorHelper.replaceCommentAnchorWithText({
-        docState: markedState!,
+        docState: markedState!.state,
         commentId: "comment-1",
         replacementText: "brisk change",
       });

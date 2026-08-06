@@ -123,16 +123,22 @@ export default class Table extends Node {
       "Shift-Tab": goToNextCell(-1),
       "Mod-Enter": addRowAndMoveSelection(),
       "Mod-Backspace": chainCommands(
-        deleteCellSelection,
-        deleteColSelection(),
+        deleteTableIfSelected(),
         deleteRowSelection(),
-        deleteTableIfSelected()
+        deleteColSelection(),
+        deleteCellSelection
       ),
       Backspace: chainCommands(
-        deleteCellSelection,
-        deleteColSelection(),
+        deleteTableIfSelected(),
         deleteRowSelection(),
-        deleteTableIfSelected()
+        deleteColSelection(),
+        deleteCellSelection
+      ),
+      Delete: chainCommands(
+        deleteTableIfSelected(),
+        deleteRowSelection(),
+        deleteColSelection(),
+        deleteCellSelection
       ),
       ArrowDown: moveOutOfTable(1),
       ArrowUp: moveOutOfTable(-1),

@@ -51,6 +51,7 @@ import history from "~/utils/history";
 import lazyWithRetry from "~/utils/lazyWithRetry";
 import { openRouteInSplit } from "~/utils/splitView";
 import { importFiles } from "~/utils/importDocuments";
+import { getEventFiles } from "@shared/utils/files";
 
 const ColorCollectionIcon = ({ collection }: { collection: Collection }) => (
   <DynamicCollectionIcon collection={collection} />
@@ -198,31 +199,6 @@ export const importDocument = dialogActionFactory({
     getActivePolicies(Collection).some(
       (policy) => policy.abilities.createDocument
     ),
-  perform: ({ t, getActiveModel, stores }) => {
-    const { documents } = stores;
-    const collection = getActiveModel(Collection);
-    if (!collection) {
-      return;
-    }
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.accept = [
-      documents.importFileTypesString,
-      ".jpg,.jpeg,.png,.gif,.webp,.svg,.avif,.bmp",
-    ].join(",");
-
-    input.onchange = (ev) =>
-      void importFiles(
-        getEventFiles(ev),
-        { collectionId: collection.id },
-        documents,
-        t
-      );
-
-    input.click();
-  },
 });
 
 export const importDirectory = createAction({

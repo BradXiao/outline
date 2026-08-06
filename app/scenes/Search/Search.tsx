@@ -201,7 +201,10 @@ function Search() {
 
   const handleChange = React.useCallback(
     (ev: React.ChangeEvent<HTMLInputElement>) => {
-      if (ev.nativeEvent.isComposing) {
+      if (
+        ev.nativeEvent instanceof InputEvent &&
+        ev.nativeEvent.isComposing
+      ) {
         setInputValue(ev.currentTarget.value);
         return;
       }

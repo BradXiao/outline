@@ -32,9 +32,14 @@ type ParsedNode = {
  * @param highlighted - whether the line matches an `hl:` spec.
  * @returns the gutter cell element.
  */
-function createLineNumber(lineNumber: number): HTMLElement {
+function createLineNumber(
+  lineNumber: number,
+  highlighted: boolean
+): HTMLElement {
   const span = document.createElement("span");
-  span.className = "line-number";
+  span.className = highlighted
+    ? `line-number ${EditorStyleHelper.codeLineNumberHighlight}`
+    : "line-number";
   span.contentEditable = "false";
   span.textContent = String(lineNumber);
   return span;

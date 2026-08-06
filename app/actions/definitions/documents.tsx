@@ -41,6 +41,7 @@ import Icon from "@shared/components/Icon";
 import type { NavigationNode } from "@shared/types";
 import { ExportContentType } from "@shared/types";
 import { isMobile } from "@shared/utils/browser";
+import { getEventFiles } from "@shared/utils/files";
 import { Week } from "@shared/utils/time";
 import type UserMembership from "~/models/UserMembership";
 import Document from "~/models/Document";
@@ -1253,29 +1254,6 @@ export const importDocument = dialogActionFactory({
     }
 
     return false;
-  },
-  perform: ({ t, activeDocumentId, activeCollectionId, stores }) => {
-    const { documents } = stores;
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.accept = [
-      documents.importFileTypesString,
-      ".jpg,.jpeg,.png,.gif,.webp,.svg,.avif,.bmp",
-    ].join(",");
-
-    input.onchange = (ev) =>
-      void importFiles(
-        getEventFiles(ev),
-        {
-          collectionId: activeCollectionId,
-          parentDocumentId: activeDocumentId,
-        },
-        documents,
-        t
-      );
-
-    input.click();
   },
 });
 

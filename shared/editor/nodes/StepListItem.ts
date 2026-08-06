@@ -270,8 +270,10 @@ export default class StepListItem extends Node {
         {
           tag: "li.step-list-item",
           preserveWhitespace: "full",
-          contentElement: (dom: Element) =>
-            (dom as HTMLElement).querySelector(".step-list-body") || dom,
+          contentElement: (dom: HTMLElement) => {
+            const body = dom.querySelector(".step-list-body");
+            return body instanceof HTMLElement ? body : dom;
+          },
         },
       ],
       toDOM: () => [

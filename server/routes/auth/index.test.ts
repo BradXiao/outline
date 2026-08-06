@@ -1,4 +1,5 @@
 import { addMonths } from "date-fns";
+import type { Context } from "koa";
 import { vi } from "vitest";
 import { Client } from "@shared/types";
 import { buildUser, buildCollection } from "@server/test/factories";
@@ -98,7 +99,7 @@ describe("auth/redirect", () => {
             },
           },
           redirect,
-        },
+        } as unknown as Context,
         "passkeys",
         {
           user,

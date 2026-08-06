@@ -106,7 +106,7 @@ function createState(selectionKind: SelectionKind) {
  */
 function runShortcut(shortcut: TableShortcut, selectionKind: SelectionKind) {
   const extension = new Table();
-  const command = extension.keys({ type: schema.nodes.table, schema })[shortcut];
+  const command = extension.keys()[shortcut];
 
   if (!command) {
     throw new Error(`Expected ${shortcut} table shortcut to be defined`);

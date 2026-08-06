@@ -62,7 +62,7 @@ export function createEditorStateWithSelection(
  * @param text - the text content (empty string for empty paragraph).
  * @returns paragraph node.
  */
-export function p(text: string) {
+export function p(text = "") {
   return schema.nodes.paragraph.create(
     null,
     text ? schema.text(text) : undefined
