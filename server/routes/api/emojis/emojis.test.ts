@@ -9,6 +9,47 @@ import { getTestServer } from "@server/test/support";
 
 const server = getTestServer();
 
+describe("#emojis.list", () => {
+  it("finds and ranks an emoji when the query omits a character", async () => {
+    const user = await buildUser();
+    await buildEmoji({
+      name: "bowling",
+      teamId: user.teamId,
+      createdById: user.id,
+    });
+    await buildEmoji({
+      name: "outline",
+      teamId: user.teamId,
+      createdById: user.id,
+    });
+
+    const res = await server.post("/api/emojis.list", user, {
+      body: { query: "oulin" },
+    });
+    const body = await res.json();
+
+    expect(res.status).toEqual(200);
+    expect(body.data[0].name).toEqual("outline");
+  });
+
+  it("finds an emoji despite a spelling mistake", async () => {
+    const user = await buildUser();
+    await buildEmoji({
+      name: "celebration",
+      teamId: user.teamId,
+      createdById: user.id,
+    });
+
+    const res = await server.post("/api/emojis.list", user, {
+      body: { query: "celbration" },
+    });
+    const body = await res.json();
+
+    expect(res.status).toEqual(200);
+    expect(body.data[0].name).toEqual("celebration");
+  });
+});
+
 describe("#emojis.update", () => {
   it("should require authentication", async () => {
     const res = await server.post("/api/emojis.update", {

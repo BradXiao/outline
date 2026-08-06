@@ -220,22 +220,29 @@ const getSearchResults = ({
   skinTone: EmojiSkinTone;
   customEmojis: EmojiNode[];
 }): DataNode[] => {
-  const emojis = search({ query, skinTone });
-
-  // Search custom emojis by name
-  const matchingCustomEmojis = customEmojis.filter((emoji) =>
-    emoji.name?.toLowerCase().includes(query.toLowerCase())
+  const searchableCustomEmojis = customEmojis.flatMap((emoji) =>
+    emoji.name ? [{ id: emoji.id, name: emoji.name }] : []
   );
-
-  const allResults = [
-    ...matchingCustomEmojis,
-    ...emojis.map((emoji) => ({
-      type: IconType.Emoji as const,
+  const customEmojiIds = new Set(
+    searchableCustomEmojis.map((emoji) => emoji.id)
+  );
+  const allResults: EmojiNode[] = search({
+    query,
+    skinTone,
+    customEmojis: searchableCustomEmojis,
+  }).map((emoji) => {
+    const icon = {
       id: emoji.id,
       value: emoji.value,
       name: emoji.name,
-    })),
-  ];
+    };
+
+    if (customEmojiIds.has(emoji.id)) {
+      return { ...icon, type: IconType.Custom };
+    }
+
+    return { ...icon, type: IconType.Emoji };
+  });
 
   return [
     {

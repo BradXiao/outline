@@ -1,8 +1,7 @@
 import RawData from "@emoji-mart/data";
 import type { EmojiMartData, Skin } from "@emoji-mart/data";
 import { init, Data } from "emoji-mart";
-import FuzzySearch from "fuzzy-search";
-import { capitalize, sortBy } from "es-toolkit/compat";
+import { capitalize } from "es-toolkit/compat";
 import type { Emoji, EmojiVariants } from "../types";
 import { EmojiCategory, EmojiSkinTone } from "../types";
 
@@ -99,10 +98,190 @@ const Emojis = allowFlagEmoji
       )
     );
 
-const searcher = new FuzzySearch(Object.values(Emojis), ["search"], {
-  caseSensitive: false,
-  sort: true,
+interface SearchableEmoji {
+  id: string;
+  terms: SearchTerm[];
+}
+
+interface SearchTerm {
+  value: string;
+  penalty: number;
+  allowTypo: boolean;
+}
+
+interface RankedEmoji {
+  emoji: Emoji;
+  score: number;
+  index: number;
+}
+
+const normalizeSearchTerm = (value: string) =>
+  value.toLowerCase().replace(/[_-]+/g, " ").trim();
+
+const createSearchTerm = (
+  value: string,
+  penalty: number,
+  allowTypo = false
+): SearchTerm => ({
+  value: normalizeSearchTerm(value),
+  penalty,
+  allowTypo,
 });
+
+const getSubsequenceScore = (
+  candidate: string,
+  query: string
+): number | undefined => {
+  let bestScore: number | undefined;
+
+  for (let start = candidate.indexOf(query[0]); start !== -1; ) {
+    let candidateIndex = start;
+    let gaps = 0;
+    let matched = true;
+
+    for (let queryIndex = 1; queryIndex < query.length; queryIndex++) {
+      const nextIndex = candidate.indexOf(
+        query[queryIndex],
+        candidateIndex + 1
+      );
+      if (nextIndex === -1) {
+        matched = false;
+        break;
+      }
+
+      gaps += nextIndex - candidateIndex - 1;
+      candidateIndex = nextIndex;
+    }
+
+    if (matched) {
+      const score =
+        40 + start * 2 + gaps * 3 + (candidate.length - query.length) / 100;
+      bestScore = Math.min(bestScore ?? score, score);
+    }
+
+    start = candidate.indexOf(query[0], start + 1);
+  }
+
+  return bestScore;
+};
+
+const getEditDistance = (left: string, right: string): number => {
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
+    const current = [leftIndex];
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex++) {
+      const substitutionCost =
+        left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + substitutionCost
+      );
+    }
+
+    previous = current;
+  }
+
+  return previous[right.length];
+};
+
+const getMatchScore = (
+  candidate: string,
+  query: string,
+  allowTypo: boolean
+): number | undefined => {
+  if (candidate === query) {
+    return 0;
+  }
+
+  const lengthPenalty = (candidate.length - query.length) / 100;
+  if (candidate.startsWith(query)) {
+    return 10 + lengthPenalty;
+  }
+
+  const wordPrefixIndex = candidate.indexOf(` ${query}`);
+  if (wordPrefixIndex !== -1) {
+    return 20 + wordPrefixIndex + 1 + lengthPenalty;
+  }
+
+  const substringIndex = candidate.indexOf(query);
+  if (substringIndex !== -1) {
+    return 30 + substringIndex + lengthPenalty;
+  }
+
+  const subsequenceScore = getSubsequenceScore(candidate, query);
+  if (subsequenceScore !== undefined) {
+    return subsequenceScore;
+  }
+
+  if (!allowTypo) {
+    return undefined;
+  }
+
+  const maximumEditDistance =
+    query.length < 3 ? 0 : Math.min(3, Math.floor(query.length / 3));
+  if (!maximumEditDistance) {
+    return undefined;
+  }
+
+  const editCandidates = [candidate, ...candidate.split(" ")].filter(
+    (value) =>
+      value && Math.abs(value.length - query.length) <= maximumEditDistance
+  );
+  if (!editCandidates.length) {
+    return undefined;
+  }
+
+  const editDistance = Math.min(
+    ...editCandidates.map((value) => getEditDistance(value, query))
+  );
+
+  return editDistance <= maximumEditDistance
+    ? 100 + editDistance * 10 + Math.abs(lengthPenalty)
+    : undefined;
+};
+
+const getSearchScore = (
+  terms: SearchTerm[],
+  query: string
+): number | undefined => {
+  let bestScore: number | undefined;
+
+  for (const term of terms) {
+    const matchScore = getMatchScore(term.value, query, term.allowTypo);
+    const score =
+      matchScore === undefined ? undefined : matchScore + term.penalty;
+    if (score !== undefined) {
+      bestScore = Math.min(bestScore ?? score, score);
+    }
+  }
+
+  return bestScore;
+};
+
+const aliasesByEmojiId: Record<string, string[]> = {};
+for (const [alias, emojiId] of Object.entries(TypedData.aliases)) {
+  const aliases = aliasesByEmojiId[emojiId] ?? [];
+  aliases.push(alias);
+  aliasesByEmojiId[emojiId] = aliases;
+}
+
+const SEARCHABLE_EMOJIS: SearchableEmoji[] = Object.values(Emojis).map(
+  (emoji) => ({
+    id: emoji.id,
+    terms: [
+      createSearchTerm(emoji.id, 0, true),
+      createSearchTerm(emoji.name, 1, true),
+      ...(aliasesByEmojiId[emoji.id] ?? []).map((value) =>
+        createSearchTerm(value, 2, true)
+      ),
+      ...(emoji.emoticons ?? []).map((value) => createSearchTerm(value, 2)),
+      ...emoji.keywords.map((value) => createSearchTerm(value, 15)),
+    ],
+  })
+);
 
 // Codes defined by unicode.org
 const SKINTONE_CODE_TO_ENUM = {
@@ -140,6 +319,16 @@ const EMOJI_ID_TO_VARIANTS = Object.entries(Emojis).reduce(
     return obj;
   },
   {} as Record<string, EmojiVariants>
+);
+
+const EMOJI_NATIVE_TO_ID = Object.values(Emojis).reduce(
+  (result, emoji) => {
+    for (const skin of emoji.skins) {
+      result[skin.native] = emoji.id;
+    }
+    return result;
+  },
+  {} as Record<string, string>
 );
 
 const CATEGORY_TO_EMOJI_IDS: Record<EmojiCategory, string[]> =
@@ -194,9 +383,14 @@ export const getEmojiVariants = ({ id }: { id: string }) =>
 type CustomEmoji = {
   id: string;
   name: string;
-  url: string;
 };
 
+/**
+ * Searches built-in and custom emoji using typo-tolerant fuzzy matching.
+ *
+ * @param options the search query, skin tone, and custom emoji candidates.
+ * @return matching emoji ordered from most to least relevant.
+ */
 export const search = ({
   query,
   skinTone,
@@ -205,44 +399,47 @@ export const search = ({
   query: string;
   skinTone?: EmojiSkinTone;
   customEmojis?: CustomEmoji[];
-}) => {
-  const queryLowercase = query.toLowerCase();
+}): Emoji[] => {
+  const normalizedQuery = normalizeSearchTerm(query);
   const emojiSkinTone = skinTone ?? EmojiSkinTone.Default;
 
-  // Search built-in emojis
-  const matchedEmojis = searcher
-    .search(queryLowercase)
-    .map(
-      (emoji) =>
-        EMOJI_ID_TO_VARIANTS[emoji.id][emojiSkinTone] ??
-        EMOJI_ID_TO_VARIANTS[emoji.id][EmojiSkinTone.Default]
-    );
+  const builtInEmojis = SEARCHABLE_EMOJIS.map((searchableEmoji) => ({
+    emoji:
+      EMOJI_ID_TO_VARIANTS[searchableEmoji.id][emojiSkinTone] ??
+      EMOJI_ID_TO_VARIANTS[searchableEmoji.id][EmojiSkinTone.Default],
+    terms: searchableEmoji.terms,
+  }));
+  const allEmojis = [
+    ...builtInEmojis,
+    ...customEmojis.map((customEmoji) => ({
+      emoji: {
+        id: customEmoji.id,
+        name: customEmoji.name,
+        value: customEmoji.id,
+      },
+      terms: [
+        createSearchTerm(customEmoji.name, 0, true),
+        createSearchTerm(customEmoji.id, 5),
+      ],
+    })),
+  ];
 
-  // Search custom emojis
-  const matchedCustomEmojis = customEmojis
-    .filter((emoji) => {
-      const nameLower = emoji.name.toLowerCase();
-      const idLower = emoji.id.toLowerCase();
-      return (
-        nameLower.includes(queryLowercase) || idLower.includes(queryLowercase)
-      );
-    })
-    .map(
-      (customEmoji) =>
-        ({
-          id: customEmoji.id,
-          name: customEmoji.name,
-          value: customEmoji.id,
-        }) as Emoji
-    );
+  if (!normalizedQuery) {
+    return allEmojis.map(({ emoji }) => emoji);
+  }
 
-  // Combine and sort all results
-  const allEmojis = [...matchedEmojis, ...matchedCustomEmojis];
+  return allEmojis
+    .reduce<RankedEmoji[]>((results, item, index) => {
+      const score = getSearchScore(item.terms, normalizedQuery);
+      if (score === undefined) {
+        return results;
+      }
 
-  return sortBy(allEmojis, (emoji) => {
-    const nlc = emoji.name.toLowerCase();
-    return query === nlc ? -1 : nlc.startsWith(queryLowercase) ? 0 : 1;
-  });
+      results.push({ emoji: item.emoji, score, index });
+      return results;
+    }, [])
+    .sort((left, right) => left.score - right.score || left.index - right.index)
+    .map(({ emoji }) => emoji);
 };
 
 /**
@@ -252,4 +449,4 @@ export const search = ({
  * @returns The emoji id, if found.
  */
 export const getEmojiId = (emoji: string): string | undefined =>
-  searcher.search(emoji)[0]?.id;
+  EMOJI_NATIVE_TO_ID[emoji];

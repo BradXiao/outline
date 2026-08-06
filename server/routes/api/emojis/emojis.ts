@@ -1,6 +1,6 @@
 import Router from "koa-router";
-import type { WhereOptions } from "sequelize";
-import { Op } from "sequelize";
+import type { Order, WhereOptions } from "sequelize";
+import { col, fn, Op, where as sequelizeWhere } from "sequelize";
 import auth from "@server/middlewares/authentication";
 import { rateLimiter } from "@server/middlewares/rateLimiter";
 import { transaction } from "@server/middlewares/transaction";
@@ -123,12 +123,23 @@ router.post(
     let where: WhereOptions<Emoji> = {
       teamId: user.teamId,
     };
+    let order: Order = [["createdAt", "DESC"]];
 
     if (query) {
       where = {
         ...where,
-        name: { [Op.iLike]: QueryHelper.likeContains(query) },
+        [Op.or]: [
+          { name: { [Op.iLike]: QueryHelper.likeSubsequence(query) } },
+          sequelizeWhere(fn("similarity", col("emoji.name"), query), {
+            [Op.gte]: 0.2,
+          }),
+        ],
       };
+      order = [
+        [fn("similarity", col("emoji.name"), query), "DESC"],
+        [fn("length", col("emoji.name")), "ASC"],
+        ["name", "ASC"],
+      ];
     }
 
     const [emojis, total] = await Promise.all([
@@ -146,7 +157,7 @@ router.post(
             paranoid: false,
           },
         ],
-        order: [["createdAt", "DESC"]],
+        order,
         offset: ctx.state.pagination.offset,
         limit: ctx.state.pagination.limit,
       }),

@@ -32,3 +32,13 @@ describe("QueryHelper.likeContains", () => {
     expect(QueryHelper.likeContains("")).toBe("%%");
   });
 });
+
+describe("QueryHelper.likeSubsequence", () => {
+  it("allows characters to be skipped", () => {
+    expect(QueryHelper.likeSubsequence("oulin")).toBe("%o%u%l%i%n%");
+  });
+
+  it("escapes LIKE pattern characters", () => {
+    expect(QueryHelper.likeSubsequence("a_b%")).toBe("%a%\\_%b%\\%%");
+  });
+});

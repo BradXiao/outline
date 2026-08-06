@@ -23,4 +23,15 @@ export class QueryHelper {
   public static likeContains(input: string) {
     return `%${QueryHelper.escapeLike(input)}%`;
   }
+
+  /**
+   * Builds a SQL LIKE pattern matching the input characters in order, allowing
+   * characters to be skipped between each one.
+   *
+   * @param input the raw input to build a pattern from.
+   * @return the pattern, for use in a LIKE or ILIKE comparison value.
+   */
+  public static likeSubsequence(input: string) {
+    return `%${Array.from(input, QueryHelper.escapeLike).join("%")}%`;
+  }
 }
