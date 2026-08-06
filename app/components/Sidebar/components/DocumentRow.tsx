@@ -10,6 +10,7 @@ import { DocumentValidation } from "@shared/validations";
 import type Document from "~/models/Document";
 import EditableTitle, { type RefHandle } from "~/components/EditableTitle";
 import Fade from "~/components/Fade";
+import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
 import NudeButton from "~/components/NudeButton";
 import Tooltip from "~/components/Tooltip";
 import useBoolean from "~/hooks/useBoolean";
@@ -323,6 +324,7 @@ function DocumentRow({
           isActive={() => true}
           depth={newChildDepth ?? depth + 1}
           ellipsis={false}
+          icon={<DocumentPlaceholderIcon />}
           label={
             <EditableTitle
               title=""

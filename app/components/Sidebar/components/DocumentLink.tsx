@@ -249,6 +249,7 @@ const DocumentLink = observer(function DocumentLink(props: Props) {
           isActive={() => true}
           depth={props.depth + 1}
           ellipsis={false}
+          icon={<DocumentPlaceholderIcon />}
           label={
             <EditableTitle
               title=""

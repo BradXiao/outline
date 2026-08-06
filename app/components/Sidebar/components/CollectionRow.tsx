@@ -11,6 +11,7 @@ import type Collection from "~/models/Collection";
 import EditableTitle, { type RefHandle } from "~/components/EditableTitle";
 import Fade from "~/components/Fade";
 import CollectionIcon from "~/components/Icons/CollectionIcon";
+import { DocumentPlaceholderIcon } from "~/components/Icons/DocumentPlaceholderIcon";
 import NudeButton from "~/components/NudeButton";
 import Tooltip from "~/components/Tooltip";
 import useBoolean from "~/hooks/useBoolean";
@@ -240,6 +241,7 @@ function CollectionRow({
           isActive={() => true}
           depth={newChildDepth ?? depth + 1}
           ellipsis={false}
+          icon={<DocumentPlaceholderIcon />}
           label={
             <EditableTitle
               title=""
