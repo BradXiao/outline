@@ -59,12 +59,12 @@ describe("applyInputRules", () => {
     const testDoc = doc([
       bullet_list.create(null, [
         list_item.create(null, [
-          softBreakParagraph("Run these commands.", "``"),
+          softBreakParagraph("Run these commands.", "```"),
         ]),
       ]),
     ]);
 
-    const result = type(testDoc, "``", "`");
+    const result = type(testDoc, "```", " ");
 
     const item = result.doc.firstChild?.firstChild;
     expect(item?.type.name).toBe("list_item");
@@ -76,9 +76,9 @@ describe("applyInputRules", () => {
   });
 
   it("creates a code block after a soft break in a plain paragraph", () => {
-    const testDoc = doc([softBreakParagraph("intro", "``")]);
+    const testDoc = doc([softBreakParagraph("intro", "```")]);
 
-    const result = type(testDoc, "``", "`");
+    const result = type(testDoc, "```", " ");
 
     expect(result.doc.childCount).toBe(2);
     expect(result.doc.child(0).type.name).toBe("paragraph");
@@ -114,11 +114,11 @@ describe("applyInputRules", () => {
         br.create(),
         schema.text("second"),
         br.create(),
-        schema.text("``"),
+        schema.text("```"),
       ]),
     ]);
 
-    const result = type(testDoc, "``", "`");
+    const result = type(testDoc, "```", " ");
 
     expect(result.doc.childCount).toBe(2);
     // The first paragraph keeps its remaining soft break intact.
@@ -141,9 +141,9 @@ describe("applyInputRules", () => {
   });
 
   it("still creates a code block at the start of an empty block", () => {
-    const testDoc = doc([p("``")]);
+    const testDoc = doc([p("```")]);
 
-    const result = type(testDoc, "``", "`");
+    const result = type(testDoc, "```", " ");
 
     expect(result.doc.firstChild?.type.spec.code).toBe(true);
     expect(result.doc.firstChild?.textContent).toBe("");

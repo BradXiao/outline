@@ -1,6 +1,8 @@
 import { Scope } from "@shared/types";
 import type { ProsemirrorData } from "@shared/types";
-import { Comment } from "@server/models";
+import { ProsemirrorHelper } from "@shared/utils/ProsemirrorHelper";
+import { Comment, Document } from "@server/models";
+import { DocumentHelper } from "@server/models/helpers/DocumentHelper";
 import {
   buildCollection,
   buildComment,
@@ -220,7 +222,16 @@ describe("create_comment_on_text", () => {
 
     expect(data.id).toBeDefined();
     expect(data.documentId).toEqual(document.id);
-    expect(data.anchorText).toEqual(anchorText);
+
+    const updatedDocument = await Document.findByPk(document.id, {
+      userId: user.id,
+    });
+    const marks = ProsemirrorHelper.getComments(
+      DocumentHelper.toProsemirror(updatedDocument!)
+    );
+    expect(ProsemirrorHelper.getAnchorTextForComment(marks, data.id)).toEqual(
+      anchorText
+    );
   });
 
   it("requires anchorText", async () => {
@@ -290,9 +301,20 @@ describe("create_suggestions", () => {
 
     expect(data.id).toBeDefined();
     expect(data.documentId).toEqual(document.id);
-    expect(data.anchorText).toEqual(anchorText);
-    expect(data.suggestions).toEqual(suggestions);
-    expect(data.originalText).toEqual(anchorText);
+
+    const comment = await Comment.findByPk(data.id, { rejectOnEmpty: true });
+    expect(comment.suggestions).toEqual(suggestions);
+    expect(comment.originalText).toEqual(anchorText);
+
+    const updatedDocument = await Document.findByPk(document.id, {
+      userId: user.id,
+    });
+    const marks = ProsemirrorHelper.getComments(
+      DocumentHelper.toProsemirror(updatedDocument!)
+    );
+    expect(ProsemirrorHelper.getAnchorTextForComment(marks, data.id)).toEqual(
+      anchorText
+    );
   });
 
   it("requires suggestions", async () => {

@@ -57,8 +57,9 @@ function customEmojiRule(state: StateInline, silent: boolean) {
 
 export default function emoji(md: MarkdownIt) {
   // Ideally this would be an empty object, but due to a bug in markdown-it-emoji
-  // passing an empty object results in newlines becoming emojis. Until this is
-  // fixed at least one key is required. See:
+  // passing an empty object results in every string (including empty text
+  // tokens produced by other rules) matching as an emoji. Until this is fixed
+  // at least one key is required. See:
   // https://github.com/markdown-it/markdown-it-emoji/issues/46
   const noMapping = {
     no_name_mapping: "💯",
@@ -67,9 +68,17 @@ export default function emoji(md: MarkdownIt) {
   // Add the custom emoji rule first so it can catch UUID patterns
   md.inline.ruler.push("custom_emoji", customEmojiRule);
 
+  // `nameToEmoji` is populated lazily, so a parser built before it loads (e.g.
+  // in tests, or briefly on first render) would otherwise lock in the buggy
+  // empty-defs regexp above for its lifetime.
+  const hasEmojiNames = Object.keys(nameToEmoji).length > 0;
+
   // Apply the standard emoji plugin to handle regular emoji names
   emojiPlugin(md, {
-    defs: (md.options as Options).emoji === false ? noMapping : nameToEmoji,
+    defs:
+      (md.options as Options).emoji === false || !hasEmojiNames
+        ? noMapping
+        : nameToEmoji,
     shortcuts: {},
   });
 
