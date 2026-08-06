@@ -31,7 +31,7 @@ import CommentMenu from "~/menus/CommentMenu";
 import lazyWithRetry from "~/utils/lazyWithRetry";
 
 const CommentEditor = lazyWithRetry(() => import("./CommentEditor"));
-import { HighlightedText } from "./HighlightText";
+import { commentCalloutStyles, HighlightedText } from "./HighlightText";
 import { useDocumentContext } from "~/components/DocumentContext";
 
 /**
@@ -402,15 +402,11 @@ const Body = styled.form`
 `;
 
 const SuggestionsText = styled.div`
-  margin: 0 0 8px;
-  padding: 8px 10px;
-  border-inline-start: 3px solid ${s("success")};
-  border-radius: 2px;
+  ${commentCalloutStyles}
+
+  border-inline-start-color: ${s("success")};
   background: ${(props) => transparentize(0.88, props.theme.success)};
   color: ${s("text")};
-  font-size: 14px;
-  line-height: 1.45;
-  white-space: pre-wrap;
 `;
 
 const OriginalText = styled(SuggestionsText)`

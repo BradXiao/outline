@@ -1,28 +1,32 @@
-import styled from "styled-components";
+import { transparentize } from "polished";
+import styled, { css } from "styled-components";
 import { s, truncateMultiline } from "@shared/styles";
 import Text from "~/components/Text";
+
+/**
+ * Shared callout styling for text associated with a comment.
+ */
+export const commentCalloutStyles = css`
+  display: block;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-inline-start: 3px solid;
+  border-radius: 2px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+`;
 
 /**
  * Highlighted text associated with a comment.
  */
 export const HighlightedText = styled(Text)`
-  position: relative;
+  ${commentCalloutStyles}
+
+  border-inline-start-color: ${s("commentMarkBackground")};
+  background: ${(props) =>
+    transparentize(0.88, props.theme.commentedImageOutlineDark)};
   color: ${s("textSecondary")};
-  font-size: 14px;
-  padding: 0 8px;
-  margin: 4px 0;
-  display: inline-block;
 
   ${truncateMultiline(3)}
-
-  &:after {
-    content: "";
-    width: 2px;
-    position: absolute;
-    inset-inline-start: 0;
-    top: 2px;
-    bottom: 2px;
-    background: ${s("commentMarkBackground")};
-    border-radius: 2px;
-  }
 `;
