@@ -245,6 +245,43 @@ describe("PostgresSearchProvider", () => {
       expect(results[0].document?.id).toBe(document.id);
     });
 
+    it("should match partial and stop words in document titles", async () => {
+      const team = await buildTeam();
+      const user = await buildUser({ teamId: team.id });
+      const collection = await buildCollection({
+        userId: user.id,
+        teamId: team.id,
+      });
+      const gettingStarted = await buildDocument({
+        userId: user.id,
+        teamId: team.id,
+        collectionId: collection.id,
+        title: "Getting Started",
+      });
+      const whatIsOutline = await buildDocument({
+        userId: user.id,
+        teamId: team.id,
+        collectionId: collection.id,
+        title: "What is Outline",
+      });
+
+      for (const query of ["get", "gett", "getting"]) {
+        const { results } = await provider.searchForUser(user, { query });
+
+        expect(results.map((result) => result.document.id)).toContain(
+          gettingStarted.id
+        );
+      }
+
+      for (const query of ["wh", "what", "What is"]) {
+        const { results } = await provider.searchForUser(user, { query });
+
+        expect(results.map((result) => result.document.id)).toContain(
+          whatIsOutline.id
+        );
+      }
+    });
+
     it("should return search results for a user without search term", async () => {
       const team = await buildTeam();
       const user = await buildUser({ teamId: team.id });

@@ -740,13 +740,12 @@ export default class PostgresSearchProvider extends BaseSearchProvider {
       // index will generally not match them.
       let likelyUrls = getUrls(options.query);
 
-      // remove likely urls, and escape the rest of the query.
-      let limitedQuery = PostgresSearchProvider.escapeQuery(
-        likelyUrls
-          .reduce((q, url) => q.replace(url, ""), options.query)
-          .slice(0, PostgresSearchProvider.maxQueryLength)
-          .trim()
-      );
+      // Remove likely URLs and limit the rest of the query.
+      const literalQuery = likelyUrls
+        .reduce((q, url) => q.replace(url, ""), options.query)
+        .slice(0, PostgresSearchProvider.maxQueryLength)
+        .trim();
+      let limitedQuery = PostgresSearchProvider.escapeQuery(literalQuery);
 
       // Escape the URLs
       likelyUrls = likelyUrls.map((url) =>
@@ -760,6 +759,7 @@ export default class PostgresSearchProvider extends BaseSearchProvider {
 
       // remove quoted queries from the limited query
       limitedQuery = limitedQuery.replace(/"([^"]*)"/g, "");
+      const literalTitleQuery = literalQuery.replace(/"([^"]*)"/g, "").trim();
 
       const iLikeQueries = [...quotedQueries, ...likelyUrls].slice(0, 3);
 
@@ -783,12 +783,25 @@ export default class PostgresSearchProvider extends BaseSearchProvider {
       }
 
       if (limitedQuery || iLikeQueries.length === 0) {
+        const searchVectorQuery = Sequelize.fn(
+          `"searchVector" @@ to_tsquery`,
+          "english",
+          Sequelize.literal(":query")
+        );
+
         where[Op.and].push(
-          Sequelize.fn(
-            `"searchVector" @@ to_tsquery`,
-            "english",
-            Sequelize.literal(":query")
-          )
+          literalTitleQuery
+            ? {
+                [Op.or]: [
+                  {
+                    title: {
+                      [Op.iLike]: QueryHelper.likeContains(literalTitleQuery),
+                    },
+                  },
+                  searchVectorQuery,
+                ],
+              }
+            : searchVectorQuery
         );
       }
     }
