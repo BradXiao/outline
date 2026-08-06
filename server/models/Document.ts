@@ -495,7 +495,7 @@ class Document extends ArchivableModel<
     const collection = await Collection.findByPk(model.collectionId, {
       includeDocumentStructure: true,
       transaction,
-      lock: Transaction.LOCK.UPDATE,
+      lock: Transaction.LOCK.NO_KEY_UPDATE,
     });
     if (!collection) {
       return;
@@ -515,7 +515,7 @@ class Document extends ArchivableModel<
       const collection = await Collection.findByPk(model.collectionId!, {
         includeDocumentStructure: true,
         transaction,
-        lock: transaction.LOCK.UPDATE,
+        lock: transaction.LOCK.NO_KEY_UPDATE,
       });
       if (!collection) {
         return;
@@ -1256,7 +1256,7 @@ class Document extends ArchivableModel<
       ? await Collection.findByPk(this.collectionId, {
           includeDocumentStructure: true,
           transaction,
-          lock: transaction?.LOCK.UPDATE,
+          lock: transaction?.LOCK.NO_KEY_UPDATE,
         })
       : undefined;
 
@@ -1290,7 +1290,7 @@ class Document extends ArchivableModel<
       ? await Collection.findByPk(this.collectionId, {
           includeDocumentStructure: true,
           transaction,
-          lock: transaction?.LOCK.UPDATE,
+          lock: transaction?.LOCK.NO_KEY_UPDATE,
         })
       : undefined;
 
@@ -1315,7 +1315,7 @@ class Document extends ArchivableModel<
       ? await Collection.findByPk(collectionId, {
           includeDocumentStructure: true,
           transaction,
-          lock: transaction?.LOCK.UPDATE,
+          lock: transaction?.LOCK.NO_KEY_UPDATE,
         })
       : undefined;
 
@@ -1370,7 +1370,7 @@ class Document extends ArchivableModel<
       const collection = await Collection.findByPk(this.collectionId, {
         includeDocumentStructure: true,
         transaction,
-        lock: transaction?.LOCK.UPDATE,
+        lock: transaction?.LOCK.NO_KEY_UPDATE,
         paranoid: false,
       });
 
